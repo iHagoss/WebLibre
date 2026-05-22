@@ -199,6 +199,14 @@ class _PaneModeSwitcherState extends ConsumerState<PaneModeSwitcher> {
                           ),
                           value: ThreePanePortraitLayout.equalColumns,
                         ),
+                        RadioListTile<ThreePanePortraitLayout>(
+                          secondary: Icon(Icons.view_agenda_outlined),
+                          title: Text('Stacked3 — three equal rows'),
+                          subtitle: Text(
+                            'Three equal-height panes stacked top-to-bottom.',
+                          ),
+                          value: ThreePanePortraitLayout.equalRows,
+                        ),
                       ],
                     ),
                   ),
@@ -234,6 +242,14 @@ class _PaneModeSwitcherState extends ConsumerState<PaneModeSwitcher> {
                             'at least 200 logical-px per row.',
                           ),
                           value: ThreePaneLandscapeLayout.equalRows,
+                        ),
+                        RadioListTile<ThreePaneLandscapeLayout>(
+                          secondary: Icon(Icons.view_column_outlined),
+                          title: Text('SideBySide3 — three equal columns'),
+                          subtitle: Text(
+                            'Three equal-width panes next to each other.',
+                          ),
+                          value: ThreePaneLandscapeLayout.equalColumns,
                         ),
                       ],
                     ),

@@ -44,6 +44,7 @@ class PaneModeSwitcherChip extends ConsumerWidget {
         ThreePanePortraitLayout.topRowAndSplitBottom =>
           Icons.view_agenda_outlined,
         ThreePanePortraitLayout.equalColumns => Icons.view_column_outlined,
+        ThreePanePortraitLayout.equalRows => Icons.view_stream_outlined,
       };
 
   String _threePortraitLayoutTitle(ThreePanePortraitLayout layout) =>
@@ -51,6 +52,7 @@ class PaneModeSwitcherChip extends ConsumerWidget {
         ThreePanePortraitLayout.topRowAndSplitBottom =>
           'Rows3 — top + split bottom',
         ThreePanePortraitLayout.equalColumns => 'Columns3 — equal columns',
+        ThreePanePortraitLayout.equalRows => 'Stacked3 — equal rows',
       };
 
   String _threePortraitLayoutSubtitle(
@@ -60,6 +62,8 @@ class PaneModeSwitcherChip extends ConsumerWidget {
       'Default portrait layout: pane 1 on top, panes 2 and 3 below.',
     ThreePanePortraitLayout.equalColumns =>
       'Three equal portrait columns, used when each pane is at least 240 px.',
+    ThreePanePortraitLayout.equalRows =>
+      'Three equal-height panes stacked top-to-bottom.',
   };
 
   IconData _threeLandscapeLayoutIcon(ThreePaneLandscapeLayout layout) =>
@@ -67,6 +71,7 @@ class PaneModeSwitcherChip extends ConsumerWidget {
         ThreePaneLandscapeLayout.leftLargeRightStacked =>
           Icons.view_column_outlined,
         ThreePaneLandscapeLayout.equalRows => Icons.view_agenda_outlined,
+        ThreePaneLandscapeLayout.equalColumns => Icons.view_week_outlined,
       };
 
   String _threeLandscapeLayoutTitle(ThreePaneLandscapeLayout layout) =>
@@ -74,6 +79,7 @@ class PaneModeSwitcherChip extends ConsumerWidget {
         ThreePaneLandscapeLayout.leftLargeRightStacked =>
           'Columns3 — left large + stacked right',
         ThreePaneLandscapeLayout.equalRows => 'Rows3 — equal rows',
+        ThreePaneLandscapeLayout.equalColumns => 'SideBySide3 — equal columns',
       };
 
   String _threeLandscapeLayoutSubtitle(
@@ -83,6 +89,8 @@ class PaneModeSwitcherChip extends ConsumerWidget {
       'Default landscape layout: pane 1 on the left, panes 2 and 3 stacked on the right.',
     ThreePaneLandscapeLayout.equalRows =>
       'Three full-width landscape rows, used when each row is at least 200 px tall.',
+    ThreePaneLandscapeLayout.equalColumns =>
+      'Three equal-width panes next to each other.',
   };
 
   @override

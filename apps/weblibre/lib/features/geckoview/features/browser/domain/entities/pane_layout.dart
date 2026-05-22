@@ -27,7 +27,7 @@
 /// `equalColumns` is the additional layout introduced by Task 44: three
 /// equal-width vertical columns side-by-side. On a Galaxy S10+ class phone
 /// (720 logical-px portrait width) this yields ~240 px per pane.
-enum ThreePanePortraitLayout { topRowAndSplitBottom, equalColumns }
+enum ThreePanePortraitLayout { topRowAndSplitBottom, equalColumns, equalRows }
 
 /// Sub-layout choice for the 3-pane landscape mode (Task 45).
 ///
@@ -36,4 +36,4 @@ enum ThreePanePortraitLayout { topRowAndSplitBottom, equalColumns }
 ///
 /// `equalRows` is the additional layout introduced by Task 45: three
 /// equal-height horizontal rows stacked top-to-bottom.
-enum ThreePaneLandscapeLayout { leftLargeRightStacked, equalRows }
+enum ThreePaneLandscapeLayout { leftLargeRightStacked, equalRows, equalColumns }

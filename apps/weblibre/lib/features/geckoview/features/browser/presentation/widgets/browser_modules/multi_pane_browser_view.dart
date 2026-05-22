@@ -102,6 +102,11 @@ class MultiPaneBrowserView extends ConsumerWidget {
         return _equalRow(context, ref, state, [0, 1, 2]);
       }
 
+      if (state.threePortraitLayout == ThreePanePortraitLayout.equalRows) {
+        // Three equal-height panes stacked top-to-bottom in portrait.
+        return _equalColumn(context, ref, state, [0, 1, 2]);
+      }
+
       return _portraitDefaultThreePane(context, ref, state);
     }
 
@@ -109,6 +114,11 @@ class MultiPaneBrowserView extends ConsumerWidget {
       // Same fix for landscape Rows3: respect the user's explicit choice
       // instead of silently falling back when each row would be < 200 px.
       return _equalColumn(context, ref, state, [0, 1, 2]);
+    }
+
+    if (state.threeLandscapeLayout == ThreePaneLandscapeLayout.equalColumns) {
+      // Three equal-width panes side-by-side in landscape.
+      return _equalRow(context, ref, state, [0, 1, 2]);
     }
 
     return _landscapeDefaultThreePane(context, ref, state);
@@ -374,7 +384,7 @@ class _DraggableDivider extends StatefulWidget {
 
 class _DraggableDividerState extends State<_DraggableDivider> {
   static const double _visualThickness = MultiPaneBrowserView._paneGutter;
-  static const double _hitThickness = 24;
+  static const double _hitThickness = 3.6;
 
   bool _hovering = false;
   bool _dragging = false;

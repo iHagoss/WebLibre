@@ -27,7 +27,7 @@ apply plugin: "kotlin-android"
 android {
     namespace = "eu.weblibre.speech_to_text_dialog"
 
-    compileSdk = 36
+    compileSdk = 37
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

@@ -1,3 +1,51 @@
+## Multi-Pane GeckoView Browsing
+
+WebLibre supports normal single-tab browsing plus optional 2-pane, 3-pane, and 4-pane split browsing on Android touchscreen phones (validated against Samsung Galaxy S10+ class devices).
+
+### Modes
+- **1 pane** — full-screen single tab (legacy behavior).
+- **2 panes** — vertical stack in portrait, side-by-side in landscape.
+- **3 panes** — vertical stack in portrait; large left + two stacked right in landscape.
+- **4 panes** — 2×2 grid in both orientations.
+
+Pane controls are surfaced via the in-app `PaneModeSwitcher` (buttons labeled `1` / `2` / `3` / `4`). Each button has at least a 48 dp touch target and is hidden during fullscreen video.
+
+### Runtime model
+- All panes share **one** `GeckoRuntime`, owned by `EngineProvider`. No additional runtimes or engines are created.
+- Each pane attaches its own existing tab/session via Android Components `BrowserStore`. Switching pane modes never closes or recreates tabs.
+- Pane attachment is orchestrated by `MultiPaneRegistry` + `GeckoBrowserApiImpl.showNativeFragmentForPane(...)`.
+
+### Sandboxing
+- Each tab has its **own page JS context, DOM, and history** — there is no cross-tab DOM access.
+- Cookies / storage isolation between panes relies on GeckoView **contextual identity / private mode / isolation context** support. WebLibre seeds the first four pane tabs as isolated tabs (`TabMode.newIsolated()`) with unique `iso1_<uuid>` context IDs.
+- Limitations of GeckoView's container/contextual-identity API are inherited as-is; WebLibre does not claim isolation beyond what GeckoView provides.
+
+### Bundled cross-pane WebExtension
+A single built-in WebExtension, `cross-pane-coordinator@weblibre.eu`, is installed at engine creation:
+- **One** background script (`background.js`) runs globally inside the shared runtime.
+- **One** content script (`content.js`) runs in every pane/tab.
+- Communication uses a named extension port (`cross-pane-coordinator`) with `register` / `ping` / `pong` / `peer-joined` / `peer-left` / targeted `send` messages.
+- **No DOM cross-access** — the extension only exchanges messages between ports.
+
+### First-launch seed
+On a clean first launch, four isolated tabs are seeded:
+1. `https://example.com`
+2. `https://mozilla.org`
+3. `https://developer.android.com`
+4. `https://wikipedia.org`
+
+Seeding is idempotent; reopening the app does not duplicate seed tabs.
+
+### Android build / run
+- Standard Flutter workflow: `flutter pub get` at repo root.
+- Regenerate Pigeon outputs from `packages/flutter_mozilla_components` if `pigeons/gecko.dart` is edited.
+- Regenerate Riverpod outputs from `apps/weblibre`: `dart run build_runner build --delete-conflicting-outputs`.
+- Build debug APK from `apps/weblibre`: `flutter build apk --debug`.
+- Phone-first layouts are validated on Samsung Galaxy S10+ (6.4″ portrait, high-density). See `docs/multi-pane-geckoview.md` for the full device test matrix.
+
+---
+
+
 <p align="center">
   <img width="250" src="apps/weblibre/assets/icon/icon.png" alt="WebLibre Logo">
 </p>

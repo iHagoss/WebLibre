@@ -6,6 +6,11 @@
 
 package eu.weblibre.flutter_mozilla_components.api
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
 import eu.weblibre.flutter_mozilla_components.GlobalComponents
 import eu.weblibre.flutter_mozilla_components.ext.toWebPBytes
 import eu.weblibre.flutter_mozilla_components.pigeons.*
@@ -62,10 +67,61 @@ class GeckoIconsApiImpl : GeckoIconsApi {
                 color = result.color?.toLong(),
                 source = result.source.toApiSource()
             )
+        } catch (e: RuntimeException) {
+            if (e is CancellationException) throw e
+
+            if (e is IllegalArgumentException || e.isSvgIconDecoderCrash()) {
+                logger.warn(
+                    "$TAG: Falling back to generated globe icon for ${request.url}; " +
+                        "SVG favicon decoder rejected the resource: ${e.message}"
+                )
+                fallbackGlobeIconResult()
+            } else {
+                logger.error("$TAG: Error in loadIconAsync", e)
+                throw e
+            }
         } catch (e: Exception) {
             logger.error("$TAG: Error in loadIconAsync", e)
             throw e
         }
+    }
+
+    private fun Throwable.isSvgIconDecoderCrash(): Boolean {
+        return stackTrace.any { frame ->
+            frame.className.contains("SvgIconDecoder") ||
+                frame.className.contains("BrowserIcons")
+        }
+    }
+
+    private fun fallbackGlobeIconResult(): IconResult {
+        val size = 64
+        val center = size / 2f
+        val radius = 23f
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(96, 112, 128)
+            style = Paint.Style.STROKE
+            strokeWidth = 3.5f
+        }
+
+        canvas.drawCircle(center, center, radius, paint)
+        canvas.drawLine(center - radius, center, center + radius, center, paint)
+        canvas.drawOval(RectF(center - 9f, center - radius, center + 9f, center + radius), paint)
+        canvas.drawArc(
+            RectF(center - radius, center - 14f, center + radius, center + 14f),
+            0f,
+            360f,
+            false,
+            paint
+        )
+
+        return IconResult(
+            image = bitmap.toWebPBytes(),
+            maskable = false,
+            color = Color.rgb(96, 112, 128).toLong(),
+            source = IconSource.GENERATOR
+        )
     }
 
     private fun IconRequest.toMozillaIconRequest(): MozillaIconRequest {

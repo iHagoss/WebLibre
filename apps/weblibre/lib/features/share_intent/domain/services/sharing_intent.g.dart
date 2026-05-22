@@ -56,4 +56,4 @@ final class SharingIntentStreamProvider
 }
 
 String _$sharingIntentStreamHash() =>
-    r'21b189c5df56f81ed5ab88115c11ddce1189cfb7';
+    r'b93002fe01b53c257521229661ee3a7bf693d1ce';

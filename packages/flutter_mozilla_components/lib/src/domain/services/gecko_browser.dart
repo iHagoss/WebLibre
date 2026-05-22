@@ -45,6 +45,26 @@ class GeckoBrowserService {
     return _api.showNativeFragment();
   }
 
+  /// Pane-aware variant of [showNativeFragment] used by split-pane layouts.
+  ///
+  /// Does not create a GeckoRuntime; it only attaches the existing tab
+  /// session identified by [tabId] to the native container backing
+  /// [platformViewId] for the logical pane [paneId]. When [focused] is true
+  /// the pane becomes the focused pane for global toolbar/keyboard state.
+  Future<bool> showNativeFragmentForPane({
+    required int platformViewId,
+    required String paneId,
+    required String tabId,
+    required bool focused,
+  }) {
+    return _api.showNativeFragmentForPane(
+      platformViewId,
+      paneId,
+      tabId,
+      focused,
+    );
+  }
+
   Future<void> onTrimMemory(int level) {
     return _api.onTrimMemory(level);
   }

@@ -30,14 +30,16 @@ class GeckoViewportApiImpl : GeckoViewportApi {
     /**
      * Sets the maximum height that dynamic toolbars (top + bottom) can occupy.
      *
-     * Targets the main browser EngineView specifically. If the main browser
-     * EngineView is not yet available, the height is stored and applied when
-     * it becomes available via [applyPendingToolbarHeight].
+     * In single-pane mode this targets the main browser EngineView. In
+     * multi-pane mode (Task 43) it targets the focused pane's EngineView
+     * via [Components.activeEngineView] so the auto-hide toolbar follows
+     * the pane the user is interacting with. If neither is available yet,
+     * the height is stored and applied later via [applyPendingToolbarHeight].
      */
     override fun setDynamicToolbarMaxHeight(heightPx: Long) {
         val height = heightPx.toInt()
 
-        val engineView = components.mainBrowserEngineView
+        val engineView = components.activeEngineView ?: components.mainBrowserEngineView
         if (engineView == null) {
             pendingToolbarHeight = height
             return
@@ -48,12 +50,12 @@ class GeckoViewportApiImpl : GeckoViewportApi {
     }
 
     /**
-     * Applies any pending toolbar height to the main browser EngineView.
-     * Called when mainBrowserEngineView becomes available.
+     * Applies any pending toolbar height to the focused/main browser EngineView.
+     * Called when an EngineView becomes available.
      */
     fun applyPendingToolbarHeight() {
         val pending = pendingToolbarHeight ?: return
-        val engineView = components.mainBrowserEngineView ?: return
+        val engineView = components.activeEngineView ?: components.mainBrowserEngineView ?: return
         pendingToolbarHeight = null
         engineView.setDynamicToolbarMaxHeight(pending)
     }
@@ -61,12 +63,13 @@ class GeckoViewportApiImpl : GeckoViewportApi {
     /**
      * Sets the vertical clipping offset for the GeckoView content.
      *
-     * Targets the main browser EngineView specifically.
+     * In multi-pane mode (Task 43) this targets the focused pane's
+     * EngineView; in single-pane it targets the main browser EngineView.
      */
     override fun setVerticalClipping(clippingPx: Long) {
         val clipping = clippingPx.toInt()
 
-        val engineView = components.mainBrowserEngineView
+        val engineView = components.activeEngineView ?: components.mainBrowserEngineView
         if (engineView == null) {
             return
         }

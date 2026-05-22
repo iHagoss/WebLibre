@@ -1,0 +1,9 @@
+# dependency_validator config for flutter_tor.
+# - example/** is its own package (flutter_tor_example); exclude it so plugin
+#   scanning does not pick up example-only imports (socks5_proxy, example name).
+# - lint is consumed via include: in analysis_options.yaml.
+exclude:
+  - "example/**"
+ignore:
+  - flutter_test
+  - lint

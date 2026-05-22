@@ -1,0 +1,19 @@
+# dependency_validator config for the weblibre app.
+#
+# allow_pins:
+#   sqlite3_flutter_libs is intentionally pinned to an exact version
+#   ("0.5.41") because it ships native libraries whose ABI must stay aligned
+#   with the bundled sqlite3 binary; pin drift causes runtime load failures.
+# ignore:
+#   - build_runner / flutter_launcher_icons: developer-tool executables, used
+#     only via `dart run` / `flutter pub run`, never imported.
+#   - cryptography_flutter: registers native crypto implementations at startup
+#     and is consumed transitively by the `cryptography` package; no direct
+#     Dart import exists.
+#   - lint: consumed via include: in analysis_options.yaml, never imported.
+allow_pins: true
+ignore:
+  - build_runner
+  - flutter_launcher_icons
+  - cryptography_flutter
+  - lint

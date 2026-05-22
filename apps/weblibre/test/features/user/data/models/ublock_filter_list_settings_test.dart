@@ -129,13 +129,13 @@ void main() {
       final tree = registry.buildGroupedParentTree();
 
       expect(tree, contains(UBlockAssetGroup.$default));
-      expect(tree[UBlockAssetGroup.$default]!, contains('uBlock filters'));
+      expect(tree[UBlockAssetGroup.$default], contains('uBlock filters'));
       expect(
         tree[UBlockAssetGroup.$default]!['uBlock filters'],
         containsAll(['ublock-filters', 'ublock-privacy']),
       );
       expect(tree, contains(UBlockAssetGroup.ads));
-      expect(tree[UBlockAssetGroup.ads]!, contains(null));
+      expect(tree[UBlockAssetGroup.ads], contains(null));
       expect(tree[UBlockAssetGroup.ads]![null], contains('easylist'));
       expect(tree, contains(UBlockAssetGroup.regions));
     });
@@ -216,7 +216,6 @@ void main() {
 
     test('resolveFinalList returns empty when disabled', () {
       final settings = UBlockFilterListSettings(
-        enabled: false,
         enabledStockListTokens: ['ublock-filters'],
       );
 
@@ -343,7 +342,6 @@ void main() {
         var settings = UBlockFilterListSettings(
           enabled: true,
           enabledStockListTokens: ['easylist'],
-          autoSelectRegionalLists: false,
           autoEnabledStockListTokens: [],
         );
 

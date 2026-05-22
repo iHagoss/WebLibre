@@ -31,11 +31,13 @@ migrate_working_dir/
 .pub/
 /build/
 assets/quotes/quotes.db
-assets/bangs/
+assets/bangs/*
+!assets/bangs/.gitkeep
 assets/preferences/builtin-bridges.json
 assets/preferences/url-shortener-list.json
 assets/preferences/url_cleaner_data.minify.json
-/assets/ublock/
+/assets/ublock/*
+!/assets/ublock/.gitkeep
 
 # Android related
 **/android/**/gradle-wrapper.jar

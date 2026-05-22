@@ -12,10 +12,13 @@ import android.view.View
 import androidx.fragment.app.FragmentActivity
 import eu.weblibre.flutter_mozilla_components.AddonPopupViewFactory
 import eu.weblibre.flutter_mozilla_components.AddonSettingsViewFactory
+import eu.weblibre.flutter_mozilla_components.BaseBrowserFragment
 import eu.weblibre.flutter_mozilla_components.BrowserFragment
+import eu.weblibre.flutter_mozilla_components.BrowserSessionManager
 import eu.weblibre.flutter_mozilla_components.GeckoViewFactory
 import eu.weblibre.flutter_mozilla_components.EngineProvider
 import eu.weblibre.flutter_mozilla_components.GlobalComponents
+import eu.weblibre.flutter_mozilla_components.MultiPaneRegistry
 import eu.weblibre.flutter_mozilla_components.ProfileContext
 import eu.weblibre.flutter_mozilla_components.activities.ExternalAppBrowserActivity
 import eu.weblibre.flutter_mozilla_components.activities.NotificationActivity
@@ -132,10 +135,29 @@ class GeckoBrowserApiImpl : GeckoBrowserApi {
 
     private lateinit var _flutterPluginBinding: FlutterPlugin.FlutterPluginBinding
     private lateinit var _flutterEvents: GeckoStateEvents
+    private var _paneFocusChannel: io.flutter.plugin.common.MethodChannel? = null
 
     fun attachBinding(flutterPluginBinding: FlutterPluginBinding) {
         _flutterPluginBinding = flutterPluginBinding
         _flutterEvents = GeckoStateEvents(_flutterPluginBinding.binaryMessenger)
+
+        // Method channel used to forward native ACTION_DOWN events on a
+        // pane's container view back to Dart so the pane controller can
+        // focus the tapped pane. See PaneTouchInterceptingFrameLayout.
+        val paneFocusChannel = io.flutter.plugin.common.MethodChannel(
+            _flutterPluginBinding.binaryMessenger,
+            "eu.weblibre.flutter_mozilla_components/pane_focus",
+        )
+        _paneFocusChannel = paneFocusChannel
+        GeckoViewFactory.paneTouchListener = { paneId ->
+            // Marshal to the main thread because Flutter MethodChannels must
+            // be invoked from the platform main thread.
+            runOnUiThread {
+                runCatching {
+                    paneFocusChannel.invokeMethod("onPaneTouched", paneId)
+                }
+            }
+        }
 
         // Register platform view factory once per engine binding.
         // The factory resolves the current activity lazily via activityProvider,
@@ -156,6 +178,15 @@ class GeckoBrowserApiImpl : GeckoBrowserApi {
             AddonPopupViewFactory(activityProvider = { this.activity }),
         )
         isPlatformViewRegistered = true
+
+        // Route pane-attach calls through BrowserSessionManager so that any
+        // future caller (tests, Dart-managed feature wrappers, etc.) has a
+        // single, stable native entry point. The manager itself does not
+        // own tabs or sessions — it only delegates to our FragmentManager
+        // attachment helper below.
+        BrowserSessionManager.setPaneAttacher { platformViewId, paneId, tabId, focused ->
+            attachTabToPaneInternal(platformViewId, paneId, tabId, focused)
+        }
 
         isGeckoInitialized = false
     }
@@ -223,6 +254,109 @@ class GeckoBrowserApiImpl : GeckoBrowserApi {
         }
 
         return false
+    }
+
+    /**
+     * Attaches a [BrowserFragment] backed by the requested tab/session to
+     * the native container associated with [platformViewId].
+     *
+     * Important architectural notes:
+     *
+     * - This method does **not** create a [GeckoSession] or [GeckoRuntime];
+     *   the [GeckoSession] for [tabId] is owned by Android Components'
+     *   `BrowserStore` (via `EngineProvider`'s single runtime). The
+     *   [BrowserFragment] only attaches an `EngineView` to the existing
+     *   session, which is why pane mode switches do not reload pages.
+     * - Each pane uses a stable fragment tag `browser-pane-$paneId` so we
+     *   only ever replace fragments belonging to the requested pane.
+     *   Fragments for other panes are left untouched, allowing
+     *   1→2→3→4-pane mode switching without closing tabs.
+     * - If the FragmentManager has already saved its state, we bail out
+     *   with `false` so the Dart-side retry logic can call us again on the
+     *   next frame instead of crashing with an `IllegalStateException`.
+     *
+     * Returns `true` when the requested tab is attached (or was already
+     * attached and healthy) to the requested pane container, `false`
+     * otherwise so Dart can retry.
+     */
+    override fun showNativeFragmentForPane(
+        platformViewId: Long,
+        paneId: String,
+        tabId: String,
+        focused: Boolean,
+    ): Boolean {
+        return BrowserSessionManager.attachTabToPane(platformViewId, paneId, tabId, focused)
+    }
+
+    /**
+     * Internal helper invoked by [BrowserSessionManager] to actually
+     * perform the pane fragment attachment using the FragmentManager and
+     * native container registered via [MultiPaneRegistry].
+     */
+    private fun attachTabToPaneInternal(
+        platformViewId: Long,
+        paneId: String,
+        tabId: String,
+        focused: Boolean,
+    ): Boolean {
+        try {
+            if (!isPlatformViewRegistered) {
+                return false
+            }
+
+            val fragmentActivity = activity as? FragmentActivity ?: return false
+            if (fragmentActivity.isFinishing || fragmentActivity.isDestroyed) {
+                return false
+            }
+
+            // Locate the native container that GeckoViewFactory generated
+            // for this Flutter platform view id. If the platform view has
+            // not finished attaching yet there will be no entry; Dart will
+            // retry.
+            val containerId = MultiPaneRegistry.getContainerViewId(platformViewId.toInt())
+                ?: return false
+            fragmentActivity.findViewById<View>(containerId) ?: return false
+
+            val fm = fragmentActivity.supportFragmentManager
+            if (fm.isStateSaved) {
+                return false
+            }
+
+            val fragmentTag = "browser-pane-$paneId"
+            val existingByTag = fm.findFragmentByTag(fragmentTag)
+            val existingInContainer = fm.findFragmentById(containerId)
+
+            // Keep MultiPaneRegistry in sync with the requested binding so
+            // later lookups (focus, back-button) see the correct tabId.
+            MultiPaneRegistry.bindPane(paneId, tabId)
+            if (focused) {
+                MultiPaneRegistry.setFocusedPane(paneId)
+                components.focusPaneEngineView(paneId)
+            }
+
+            // If the same pane fragment is already attached to the same
+            // container with the same tab id and is healthy, do nothing.
+            if (
+                existingByTag is BrowserFragment &&
+                existingInContainer === existingByTag &&
+                existingByTag.arguments?.getString("session_id") == tabId &&
+                existingByTag.arguments?.getString(BaseBrowserFragment.PANE_ID_KEY) == paneId &&
+                !isFragmentCorrupted(existingByTag)
+            ) {
+                return true
+            }
+
+            // Replace only this pane's fragment; do not touch other panes.
+            val newFragment = BrowserFragment.create(sessionId = tabId, paneId = paneId)
+            fm.beginTransaction()
+                .replace(containerId, newFragment, fragmentTag)
+                .commitNow()
+
+            return true
+        } catch (e: Exception) {
+            logger.error("Failed to show native fragment for pane $paneId / tab $tabId", e)
+            return false
+        }
     }
 
     private fun setupGeckoEngine(

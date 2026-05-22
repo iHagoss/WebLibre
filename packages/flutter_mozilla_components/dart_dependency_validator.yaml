@@ -1,0 +1,9 @@
+# dependency_validator config for flutter_mozilla_components.
+# - example/** is its own package (flutter_mozilla_components_example); exclude
+#   it so plugin-package scanning does not pick up example-only imports.
+# - lint is consumed via include: in analysis_options.yaml and is never
+#   imported in Dart source, so the validator misreports it as unused.
+exclude:
+  - "example/**"
+ignore:
+  - lint

@@ -211,7 +211,10 @@ GeckoViewportService viewportService(Ref ref) {
 @Riverpod(keepAlive: true)
 class EngineReadyState extends _$EngineReadyState {
   Future<bool> waitUntilReady({
-    Duration timeout = const Duration(seconds: 3),
+    // Increased from 3s to 30s so first-launch engine initialization
+    // (especially on cold-start with extensions installing) does not race
+    // with the pane attachment flow and surface a noisy warning log.
+    Duration timeout = const Duration(seconds: 30),
   }) async {
     final eventService = ref.read(eventServiceProvider);
     final currentState =

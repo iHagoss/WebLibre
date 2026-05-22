@@ -42,10 +42,12 @@ import 'package:weblibre/features/geckoview/domain/repositories/tab.dart';
 import 'package:weblibre/features/geckoview/features/browser/domain/providers.dart';
 import 'package:weblibre/features/geckoview/features/browser/domain/providers/intent.dart';
 import 'package:weblibre/features/geckoview/features/browser/domain/providers/lifecycle.dart';
+import 'package:weblibre/features/geckoview/features/browser/domain/providers/pane_controller.dart';
 import 'package:weblibre/features/geckoview/features/browser/domain/services/browser_data.dart';
 import 'package:weblibre/features/geckoview/features/browser/domain/services/engine_settings_replication.dart';
 import 'package:weblibre/features/geckoview/features/browser/domain/services/proxy_settings_replication.dart';
 import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/browser_home.dart';
+import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/browser_modules/multi_pane_browser_view.dart';
 import 'package:weblibre/features/geckoview/features/history/domain/repositories/history.dart';
 import 'package:weblibre/features/geckoview/features/preferences/data/repositories/preference_observer.dart';
 import 'package:weblibre/features/geckoview/features/pwa/domain/providers.dart';
@@ -207,98 +209,17 @@ class _BrowserViewState extends ConsumerState<BrowserView>
         children: [
           Visibility(
             visible: isGeckoViewVisible,
-            child: GeckoView(
-              preInitializationStep: () async {
-                await ref
-                    .read(eventServiceProvider)
-                    .viewReadyStateEvents
-                    .firstWhere((state) => state == true)
-                    .timeout(
-                      const Duration(seconds: 3),
-                      onTimeout: () {
-                        logger.e(
-                          'Browser fragement not reported ready, trying to intitialize anyways',
-                        );
-                        return true;
-                      },
-                    );
-              },
-              postInitializationStep: () async {
-                await widget.postInitializationStep?.call();
-
-                if (!_initializationCompleter.isCompleted) {
-                  _initializationCompleter.complete();
-
-                  const quickActions = QuickActions();
-
-                  //Debounce: https://github.com/flutter/flutter/issues/131121
-                  DateTime? lastAction;
-                  await quickActions.initialize((type) async {
-                    if (lastAction == null ||
-                        DateTime.now().difference(lastAction!) >
-                            const Duration(seconds: 5)) {
-                      if (type == 'new_tab') {
-                        lastAction = DateTime.now();
-
-                        final router = await ref.read(routerProvider.future);
-                        const route = SearchRoute(tabType: TabType.regular);
-
-                        await router.push(route.location);
-                      } else if (type == 'new_private_tab') {
-                        lastAction = DateTime.now();
-
-                        final router = await ref.read(routerProvider.future);
-                        const route = SearchRoute(tabType: TabType.private);
-
-                        await router.push(route.location);
-                      } else if (type == 'new_isolated_tab') {
-                        final settings = ref.read(
-                          generalSettingsWithDefaultsProvider,
-                        );
-                        if (!settings.showIsolatedTabUi) {
-                          return;
-                        }
-
-                        lastAction = DateTime.now();
-
-                        final router = await ref.read(routerProvider.future);
-                        const route = SearchRoute(tabType: TabType.isolated);
-
-                        await router.push(route.location);
-                      } else {
-                        throw UnimplementedError(
-                          'Unknown quick action shortcut type',
-                        );
-                      }
-                    }
-                  });
-
-                  final settings = ref.read(
-                    generalSettingsWithDefaultsProvider,
-                  );
-                  await quickActions.setShortcutItems([
-                    const ShortcutItem(
-                      type: 'new_tab',
-                      localizedTitle: 'New Tab',
-                      icon: 'mdi_icon_tab',
-                    ),
-                    const ShortcutItem(
-                      type: 'new_private_tab',
-                      localizedTitle: 'New Private Tab',
-                      icon: 'mdi_icon_domino_mask',
-                    ),
-                    if (settings.showIsolatedTabUi)
-                      const ShortcutItem(
-                        type: 'new_isolated_tab',
-                        localizedTitle: 'New Isolated Tab',
-                        icon: 'mdi_icon_snowflake',
-                      ),
-                  ]);
-                }
-              },
+            child: MultiPaneBrowserView(
+              // BrowserHome is shown as an overlay only when the focused pane
+              // needs it. In single-pane mode this preserves the legacy
+              // full-bleed BrowserHome behavior. In split modes only the
+              // focused pane gets the overlay so the other panes keep showing
+              // their live web content.
+              focusedPaneOverlayBuilder: showHome
+                  ? (context) => const BrowserHome()
+                  : null,
             ),
           ),
-          if (showHome) const Positioned.fill(child: BrowserHome()),
         ],
       ),
     );
@@ -315,6 +236,105 @@ class _BrowserViewState extends ConsumerState<BrowserView>
     });
 
     WidgetsBinding.instance.addObserver(this);
+
+    // Replaces the legacy GeckoView preInit/postInit callbacks.
+    // We now run startup work (pane seeding, postInit callback, quick actions
+    // shortcut registration) as soon as the engine reports ready, rather
+    // than as a side-effect of a single legacy GeckoView attaching to a
+    // session. This is required because MultiPaneBrowserView may attach up
+    // to four GeckoViews and no individual pane owns app-wide init work.
+    ref.listenManual<bool>(
+      fireImmediately: true,
+      engineReadyStateProvider,
+      (previous, next) async {
+        if (next != true) return;
+        if (_initializationCompleter.isCompleted) return;
+        _initializationCompleter.complete();
+
+        try {
+          // Seed the four pane slots once. Safe to call multiple times; the
+          // controller guards with an internal flag.
+          await ref
+              .read(paneControllerProvider.notifier)
+              .ensureStartupPanesSeeded();
+
+          await widget.postInitializationStep?.call();
+
+          const quickActions = QuickActions();
+
+          //Debounce: https://github.com/flutter/flutter/issues/131121
+          DateTime? lastAction;
+          await quickActions.initialize((type) async {
+            if (lastAction == null ||
+                DateTime.now().difference(lastAction!) >
+                    const Duration(seconds: 5)) {
+              if (type == 'new_tab') {
+                lastAction = DateTime.now();
+
+                final router = await ref.read(routerProvider.future);
+                const route = SearchRoute(tabType: TabType.regular);
+
+                await router.push(route.location);
+              } else if (type == 'new_private_tab') {
+                lastAction = DateTime.now();
+
+                final router = await ref.read(routerProvider.future);
+                const route = SearchRoute(tabType: TabType.private);
+
+                await router.push(route.location);
+              } else if (type == 'new_isolated_tab') {
+                final settings = ref.read(generalSettingsWithDefaultsProvider);
+                if (!settings.showIsolatedTabUi) {
+                  return;
+                }
+
+                lastAction = DateTime.now();
+
+                final router = await ref.read(routerProvider.future);
+                const route = SearchRoute(tabType: TabType.isolated);
+
+                await router.push(route.location);
+              } else {
+                throw UnimplementedError('Unknown quick action shortcut type');
+              }
+            }
+          });
+
+          final settings = ref.read(generalSettingsWithDefaultsProvider);
+          await quickActions.setShortcutItems([
+            const ShortcutItem(
+              type: 'new_tab',
+              localizedTitle: 'New Tab',
+              icon: 'mdi_icon_tab',
+            ),
+            const ShortcutItem(
+              type: 'new_private_tab',
+              localizedTitle: 'New Private Tab',
+              icon: 'mdi_icon_domino_mask',
+            ),
+            if (settings.showIsolatedTabUi)
+              const ShortcutItem(
+                type: 'new_isolated_tab',
+                localizedTitle: 'New Isolated Tab',
+                icon: 'mdi_icon_snowflake',
+              ),
+          ]);
+        } catch (error, stackTrace) {
+          logger.e(
+            'Error during post-engine-ready initialization',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
+      },
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to engineReadyStateProvider in BrowserView',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
 
     ref.listenManual(
       selectedTabStateProvider.select(

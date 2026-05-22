@@ -6287,6 +6287,11 @@ interface GeckoBrowserApi {
   fun getGeckoVersion(): String
   fun initialize(profileFolder: String, logLevel: LogLevel, contentBlocking: ContentBlocking, addonCollection: AddonCollection?, fxaServerOverride: String?, syncTokenServerOverride: String?, startupSettings: GeckoEngineSettings?, startupUBlockFilterListsPref: String?, clearStartupUBlockFilterListsPref: Boolean)
   fun showNativeFragment(): Boolean
+  /**
+   * Attach an existing tab/session to a specific native pane platform-view container.
+   * Does NOT create a new GeckoRuntime or session.
+   */
+  fun showNativeFragmentForPane(platformViewId: Long, paneId: String, tabId: String, focused: Boolean): Boolean
   fun onTrimMemory(level: Long)
   fun openInCustomTab(url: String, private: Boolean, contextId: String?)
   fun isDefaultBrowser(): Boolean
@@ -6350,6 +6355,26 @@ interface GeckoBrowserApi {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               listOf(api.showNativeFragment())
+            } catch (exception: Throwable) {
+              GeckoPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.flutter_mozilla_components.GeckoBrowserApi.showNativeFragmentForPane$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val platformViewIdArg = args[0] as Long
+            val paneIdArg = args[1] as String
+            val tabIdArg = args[2] as String
+            val focusedArg = args[3] as Boolean
+            val wrapped: List<Any?> = try {
+              listOf(api.showNativeFragmentForPane(platformViewIdArg, paneIdArg, tabIdArg, focusedArg))
             } catch (exception: Throwable) {
               GeckoPigeonUtils.wrapError(exception)
             }

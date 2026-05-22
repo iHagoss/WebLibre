@@ -125,6 +125,20 @@ object EngineProvider {
             BrowserExtensionFeature.install(it, extensionEvents)
             MLEngineFeature.install(it)
 
+            // Task 40 — startup warning
+            // "addons.xpi WARN Force scan SCOPE_APPLICATION (app-builtin-addons
+            //  location missing from XPIStates)" is logged by Gecko's internal
+            // XPIProvider during GeckoRuntime.create(), BEFORE the
+            // BuiltInWebExtensionController.install(...) calls below run.
+            // Mozilla Android Components / GeckoView do not expose a public
+            // Java/Kotlin API to register the `app-builtin-addons` XPI location
+            // ahead of that first scan, so the warning cannot be suppressed
+            // from here without either (a) shipping a Gecko prefs file via
+            // GeckoRuntimeSettings.Builder.configFilePath() that sets
+            // extensions.startupScanScopes=0, or (b) a future GeckoView API.
+            // The warning is cosmetic and does not affect built-in extension
+            // installation below — they install correctly on the same engine.
+
             //Install extensions early
             BuiltInWebExtensionController(
                 "readability-extract@weblibre.eu",
@@ -137,6 +151,20 @@ object EngineProvider {
                 "resource://android/assets/extensions/readerview/",
                 "mozacReaderview",
             ).install(it)
+
+            // Cross-pane coordinator: one global background script + content
+            // script in every pane/tab. Installed on the same shared engine
+            // used by all panes — no extra runtime or engine is created.
+            try {
+                BuiltInWebExtensionController(
+                    "cross-pane-coordinator@weblibre.eu",
+                    "resource://android/assets/extensions/cross_pane_coordinator/",
+                    "crossPaneCoordinator",
+                ).install(it)
+                Logger.debug("Installed cross-pane-coordinator extension")
+            } catch (e: Throwable) {
+                Logger.error("Failed to install cross-pane-coordinator extension", e)
+            }
         }
     }
 

@@ -27,7 +27,7 @@ apply plugin: "kotlin-android"
 android {
     namespace = "eu.weblibre.simple_intent_receiver"
 
-    compileSdk = 36
+    compileSdk = 37
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

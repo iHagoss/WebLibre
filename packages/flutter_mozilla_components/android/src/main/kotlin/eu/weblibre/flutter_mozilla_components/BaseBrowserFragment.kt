@@ -10,6 +10,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -53,7 +54,6 @@ import mozilla.components.feature.prompts.file.AndroidPhotoPicker
 import mozilla.components.feature.session.FullScreenFeature
 import mozilla.components.feature.session.PictureInPictureFeature
 import mozilla.components.feature.session.SessionFeature
-import mozilla.components.feature.session.SwipeRefreshFeature
 import mozilla.components.feature.sitepermissions.SitePermissionsFeature
 import mozilla.components.feature.sitepermissions.SitePermissionsRules
 import mozilla.components.feature.sitepermissions.SitePermissionsRules.AutoplayAction
@@ -85,7 +85,6 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
     private val promptFeature = ViewBoundFeatureWrapper<PromptFeature>()
     private val webExtensionPromptFeature = ViewBoundFeatureWrapper<WebExtensionPromptFeature>()
     private val sitePermissionsFeature = ViewBoundFeatureWrapper<SitePermissionsFeature>()
-    private val swipeRefreshFeature = ViewBoundFeatureWrapper<SwipeRefreshFeature>()
     private val secureWindowFeature = ViewBoundFeatureWrapper<SecureWindowFeature>()
     private val fullScreenFeature = ViewBoundFeatureWrapper<FullScreenFeature>()
     private val mediaSessionFullscreenFeature =
@@ -109,6 +108,16 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
     // Browser scroll-handling detection feature
     private var browserHandlingScrollFeature: BrowserHandlingScrollFeature? = null
 
+    /**
+     * Listener registered on [Components] for cross-pane focus changes
+     * (Task 43). When focus moves to/away from this pane the listener
+     * starts or stops the "focused-only" global features
+     * ([keyboardVisibilityFeature] and [browserHandlingScrollFeature]) so
+     * the URL toolbar's auto-hide / dynamic clipping behaviour follows
+     * whichever pane the user just interacted with.
+     */
+    private var paneFocusListener: ((String) -> Unit)? = null
+
     // Registers a photo picker activity launcher in single-select mode.
     private val singleMediaPicker =
         AndroidPhotoPicker.singleMediaPicker(
@@ -125,6 +134,33 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
 
     private val sessionId: String?
         get() = arguments?.getString(SESSION_ID_KEY)
+
+    /**
+     * Optional pane identifier. Present when this fragment is part of a multi-pane layout.
+     * Pane-aware behavior:
+     * - The created [EngineView] is registered in [Components.paneEngineViews] via
+     *   [Components.registerPaneEngineView].
+     * - [Components.activeEngineView] is only mutated when this pane is the focused pane,
+     *   so other panes are not disturbed.
+     * - Global viewport/keyboard/scroll features are only started for the focused pane
+     *   (or for legacy single-pane fragments where [paneId] is null).
+     *
+     * Note: multiple pane fragments share one [mozilla.components.browser.engine.gecko.GeckoEngine]
+     * and one [mozilla.components.browser.state.store.BrowserStore]. Each tab/[EngineSession]
+     * has its own page JS context and DOM. Cookie/storage isolation between panes depends on
+     * contextual identity / private / isolation context support exposed by GeckoView, which is
+     * orchestrated at the Dart side (TabRepository) via isolated context ids.
+     */
+    protected val paneId: String?
+        get() = arguments?.getString(PANE_ID_KEY)
+
+    private val isPaneAware: Boolean
+        get() = paneId != null
+
+    private fun isFocusedPane(): Boolean {
+        val pid = paneId ?: return false
+        return MultiPaneRegistry.isFocusedPane(pid)
+    }
 
     private var _binding: FragmentBrowserBinding? = null
     val binding get() = _binding!!
@@ -253,7 +289,23 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
 
             binding.swipeToRefresh.addView(engineNativeView)
 
-            components.activeEngineView = engineView
+            // Pane-aware: only the focused pane should become the global active engine view.
+            // For legacy single-pane fragments (paneId == null) preserve the prior behavior
+            // and always assign activeEngineView. BrowserFragment.createEngine already
+            // registered this engineView in the pane registry when pane-aware.
+            if (!isPaneAware || isFocusedPane()) {
+                components.activeEngineView = engineView
+            }
+
+            // Task 47 — Per-pane viewport scaling. Apply the compositor
+            // policy as soon as the EngineView is attached so a multi-
+            // pane configuration renders each page against the full
+            // single-pane logical viewport and is then visually scaled
+            // to fit the pane (instead of reflowing to a narrow phone
+            // width). For single-pane (paneCount <= 1) this is a no-op.
+            if (isPaneAware) {
+                PaneViewportPolicy.applyTo(engineView, components.paneEngineViews.size)
+            }
 
             sessionFeature.set(
                 feature = SessionFeature(
@@ -267,15 +319,36 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
                 view = view,
             )
 
-            swipeRefreshFeature.set(
-                feature = SwipeRefreshFeature(
-                    components.core.store,
-                    components.useCases.sessionUseCases.reload,
-                    binding.swipeToRefresh,
-                ),
-                owner = this,
-                view = view,
-            )
+            // Task 38 — Per-pane pull-to-refresh actually reloads the pulled
+            // pane. The Mozilla AC `SwipeRefreshFeature.canScrollVerticallyUp`
+            // / reload path consults the globally-active EngineView and the
+            // globally-selected tab, so even though we previously passed this
+            // fragment's own sessionId, non-focused panes only displayed the
+            // refresh spinner without triggering the reload of their own tab.
+            //
+            // Replace AC's SwipeRefreshFeature with an inline listener that:
+            //  - uses THIS fragment's sessionId for reload (per-pane reload), and
+            //  - reports scroll-up state from THIS fragment's EngineView view via an
+            //    OnChildScrollUpCallback (per-pane swipe enable).
+            //
+            // GlobalComponents.pullToRefreshEnabled toggle behavior is kept
+            // intact below.
+            binding.swipeToRefresh.setOnChildScrollUpCallback { _, _ ->
+                // Return true means "child can scroll up" -> SwipeRefreshLayout
+                // will NOT start a refresh swipe. Use this fragment's own
+                // EngineView so each pane's scroll position drives its own
+                // pull-to-refresh enablement.
+                fragmentEngineView?.asView()?.canScrollVertically(-1) ?: false
+            }
+            binding.swipeToRefresh.setOnRefreshListener {
+                val tabId = sessionId
+                if (tabId != null) {
+                    components.useCases.sessionUseCases.reload(tabId)
+                } else {
+                    components.useCases.sessionUseCases.reload()
+                }
+                binding.swipeToRefresh.isRefreshing = false
+            }
 
             // Apply pull-to-refresh setting
             binding.swipeToRefresh.isEnabled = GlobalComponents.pullToRefreshEnabled
@@ -562,15 +635,34 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
 
             components.core.historyStorage.registerStorageMaintenanceWorker()
 
-            // Start keyboard visibility detection if viewport events are available
-            GlobalComponents.viewportEvents?.let { viewportEvents ->
-                keyboardVisibilityFeature = KeyboardVisibilityFeature(viewportEvents).also {
-                    it.start(binding.root)
-                }
+            // Start keyboard visibility detection if viewport events are available.
+            // In multi-pane mode, only the focused pane drives global toolbar/keyboard
+            // behavior so the other panes don't fight for the same global signals.
+            if (!isPaneAware || isFocusedPane()) {
+                startFocusedPaneFeatures()
+            }
 
-                browserHandlingScrollFeature = BrowserHandlingScrollFeature(viewportEvents).also {
-                    it.start()
+            // Task 43 — Subscribe to cross-pane focus changes so the
+            // previously focused pane stops driving the URL toolbar and
+            // the newly focused pane (re-)starts driving it. Without this
+            // listener the auto-hide toolbar behaviour gets stuck on the
+            // first focused pane and never moves with the user.
+            if (isPaneAware) {
+                val listener: (String) -> Unit = { newFocusedPaneId ->
+                    val thisIsFocused = newFocusedPaneId == paneId
+                    if (thisIsFocused) {
+                        // Reapply pending dynamic-toolbar height for the
+                        // newly active EngineView, then (re-)start the
+                        // focused-only features so they latch onto the
+                        // newly active EngineView.
+                        GlobalComponents.viewportApi?.applyPendingToolbarHeight()
+                        startFocusedPaneFeatures()
+                    } else {
+                        stopFocusedPaneFeatures()
+                    }
                 }
+                paneFocusListener = listener
+                components.addPaneFocusListener(listener)
             }
 
             onEngineSetupComplete()
@@ -586,6 +678,45 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
      * Subclasses can override to perform additional setup that requires an attached engine view.
      */
     protected open fun onEngineSetupComplete() {}
+
+    /**
+     * Start the "focused-only" global features
+     * ([keyboardVisibilityFeature] and [browserHandlingScrollFeature])
+     * for this fragment.
+     *
+     * Idempotent: if a feature instance already exists it is stopped and
+     * re-created so its internal touch-listener re-binds to the **current**
+     * `Components.activeEngineView` — required when focus moves from one
+     * pane to another (Task 43).
+     */
+    private fun startFocusedPaneFeatures() {
+        val view = _binding?.root ?: return
+        val viewportEvents = GlobalComponents.viewportEvents ?: return
+
+        // Recreate so the new instance reads the (now updated) active
+        // engine view in its touch-attach path.
+        keyboardVisibilityFeature?.stop()
+        keyboardVisibilityFeature = KeyboardVisibilityFeature(viewportEvents).also {
+            it.start(view)
+        }
+
+        browserHandlingScrollFeature?.stop()
+        browserHandlingScrollFeature = BrowserHandlingScrollFeature(viewportEvents).also {
+            it.start()
+        }
+    }
+
+    /**
+     * Stop the "focused-only" global features so the previously focused
+     * pane no longer drives URL toolbar / keyboard behaviour after focus
+     * has moved to a different pane (Task 43).
+     */
+    private fun stopFocusedPaneFeatures() {
+        keyboardVisibilityFeature?.stop()
+        keyboardVisibilityFeature = null
+        browserHandlingScrollFeature?.stop()
+        browserHandlingScrollFeature = null
+    }
 
     private fun openPopup(webExtensionState: WebExtensionState) {
         components.addonEvents.onWebExtensionPopupRequested(
@@ -616,6 +747,17 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
     private fun viewportFitChanged(viewportFit: Int) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             activity?.window?.attributes?.layoutInDisplayCutoutMode = viewportFit
+        }
+    }
+
+    @CallSuper
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Task 47 — Re-evaluate the per-pane viewport scale on
+        // orientation change so the new base width/height is used and
+        // each pane's compositor scale tracks the new pane geometry.
+        if (isPaneAware) {
+            PaneViewportPolicy.refresh(components)
         }
     }
 
@@ -655,6 +797,7 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
 
     companion object {
         private const val SESSION_ID_KEY = "session_id"
+        const val PANE_ID_KEY = "pane_id"
 
         private const val REQUEST_CODE_DOWNLOAD_PERMISSIONS = 1
         private const val REQUEST_CODE_PROMPT_PERMISSIONS = 2
@@ -664,18 +807,36 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
         protected fun Bundle.putSessionId(sessionId: String?) {
             putString(SESSION_ID_KEY, sessionId)
         }
+
+        @JvmStatic
+        protected fun Bundle.putPaneId(paneId: String?) {
+            if (paneId != null) {
+                putString(PANE_ID_KEY, paneId)
+            }
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        // Reassign active engine view to this fragment's EngineView when fragment becomes active
+        // Reassign active engine view to this fragment's EngineView when fragment becomes active.
+        // In pane-aware mode only do so when this pane is the focused pane to avoid panes
+        // stealing focus from one another on Fragment resume cycles (e.g. after rotation).
         fragmentEngineView?.let {
-            components.activeEngineView = it
+            if (!isPaneAware || isFocusedPane()) {
+                components.activeEngineView = it
+            }
         }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+
+        // Task 43 — Unregister the cross-pane focus listener before tearing
+        // down the rest of the fragment, otherwise a stale listener on a
+        // destroyed fragment would keep getting focus callbacks and try to
+        // start features against a torn-down view.
+        paneFocusListener?.let { components.removePaneFocusListener(it) }
+        paneFocusListener = null
 
         // Stop keyboard visibility detection
         keyboardVisibilityFeature?.stop()
@@ -688,6 +849,13 @@ abstract class BaseBrowserFragment : Fragment(), UserInteractionHandler, Activit
         GlobalComponents.onPullToRefreshEnabledChanged = null
         GlobalComponents.onScreenshotProtectionEnabledChanged = null
         val engineView = fragmentEngineView
+        // Task 47 — Clear any compositor scale we applied to this
+        // pane's EngineView before it is detached so the next consumer
+        // of this View (or its layout pool reuse) starts from a clean
+        // identity transform.
+        if (engineView != null) {
+            PaneViewportPolicy.clear(engineView)
+        }
         engineView?.setActivityContext(null)
         if (components.activeEngineView == engineView) {
             components.activeEngineView = null

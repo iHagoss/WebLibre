@@ -40,6 +40,7 @@ import 'package:weblibre/features/geckoview/features/browser/features/contextual
 import 'package:weblibre/features/geckoview/features/browser/features/contextual_toolbar/presentation/widgets/contextual_toolbar.dart';
 import 'package:weblibre/features/geckoview/features/browser/presentation/controllers/toolbar_visibility.dart';
 import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/browser_modules/app_bar_title.dart';
+import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/browser_modules/pane_mode_switcher_chip.dart';
 import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/tab_icon.dart';
 import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/tab_menu.dart';
 import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/toolbar_button.dart';
@@ -268,6 +269,11 @@ class BrowserTabBar extends HookConsumerWidget {
               child: icon,
             ),
           ),
+        // Task 42 — Pane mode switcher chip lives in the URL toolbar row,
+        // positioned to the left of the tab counter so the order reads
+        // [URL field] [pane switcher] [tab counter] [menu]. Hidden when
+        // we are in small-web mode (no panes to switch in that mode).
+        if (!isSmallWebMode) const PaneModeSwitcherChip(),
         if (showMainToolbarTabsCount)
           TabsCountButton(
             selectedTabId: selectedTabId,
@@ -557,11 +563,13 @@ class QuickTabSwitcher extends HookConsumerWidget {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final context = activeItemKey.value.currentContext;
         if (context != null) {
-          Scrollable.ensureVisible(
-            context,
-            alignment: 0.5,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
+          unawaited(
+            Scrollable.ensureVisible(
+              context,
+              alignment: 0.5,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+            ),
           );
         } else if (chipScrollController.hasClients) {
           final activeIndex = availableItems.indexWhere(
@@ -579,11 +587,13 @@ class QuickTabSwitcher extends HookConsumerWidget {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               final retryContext = activeItemKey.value.currentContext;
               if (retryContext != null) {
-                Scrollable.ensureVisible(
-                  retryContext,
-                  alignment: 0.5,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
+                unawaited(
+                  Scrollable.ensureVisible(
+                    retryContext,
+                    alignment: 0.5,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                  ),
                 );
               }
             });

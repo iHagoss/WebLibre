@@ -26,7 +26,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace = "eu.weblibre.gecko"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -43,7 +43,7 @@ android {
         applicationId = "eu.weblibre.gecko"
         // https://api.flutter.dev/flutter/widgets/AndroidView-class.html
         minSdkVersion = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }

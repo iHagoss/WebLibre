@@ -1347,6 +1347,38 @@ abstract class GeckoBrowserApi {
     bool clearStartupUBlockFilterListsPref,
   );
   bool showNativeFragment();
+
+  /// Attach an existing tab/session to a specific native pane platform-view
+  /// container.
+  ///
+  /// This method does NOT create a new [GeckoRuntime] or a new
+  /// [GeckoSession]; the runtime is owned by [EngineProvider] and the
+  /// session for [tabId] is owned by Android Components' [BrowserStore].
+  /// It only attaches the existing tab's [EngineView] to the native view
+  /// container that corresponds to [platformViewId].
+  ///
+  /// - [platformViewId] is the Flutter platform-view id, used to look up
+  ///   the native [FrameLayout] container in [MultiPaneRegistry].
+  /// - [paneId] is the stable Dart-side pane identifier (e.g. `pane-0`).
+  ///   It is used to derive a unique fragment tag per pane so that
+  ///   replacing one pane's fragment does not disturb the other panes.
+  /// - [tabId] is the existing tab/session id from [BrowserStore]; this
+  ///   is the session that should be displayed in this pane.
+  /// - [focused] indicates whether this pane should be considered the
+  ///   currently focused pane; the focused pane drives global toolbar,
+  ///   keyboard and back-button behavior.
+  ///
+  /// Returns `true` once the fragment is attached (or already present
+  /// with the same [tabId]), `false` if the native container is not
+  /// ready yet or the FragmentManager state is saved. Dart retry logic
+  /// uses the `false` return to try again on a later frame.
+  bool showNativeFragmentForPane(
+    int platformViewId,
+    String paneId,
+    String tabId,
+    bool focused,
+  );
+
   void onTrimMemory(int level);
   void openInCustomTab({
     required String url,

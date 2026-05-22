@@ -40,12 +40,13 @@ const _alwaysAllowPackageExtra = 'eu.weblibre.gatekeeper.always_allow_package';
 StreamTransformer<Intent, ReceivedIntentParameter>
 _buildSharingIntentTransformer(
   IntentGatekeeper gatekeeper,
+  Ref ref,
 ) => StreamTransformer<Intent, ReceivedIntentParameter>.fromHandlers(
   handleData: (intent, sink) async {
     final alwaysAllowPackage =
         intent.extra[_alwaysAllowPackageExtra] as String?;
     if (alwaysAllowPackage != null) {
-      await gatekeeper.ref
+      await ref
           .read(generalSettingsRepositoryProvider.notifier)
           .updateSettings(
             (current) => current.copyWith.externalAppIntentPolicies({
@@ -155,5 +156,7 @@ Raw<Stream<ReceivedIntentParameter>> sharingIntentStream(Ref ref) {
   final receiver = IntentReceiver.setUp();
   final gatekeeper = ref.watch(intentGatekeeperProvider.notifier);
 
-  return receiver.events.transform(_buildSharingIntentTransformer(gatekeeper));
+  return receiver.events.transform(
+    _buildSharingIntentTransformer(gatekeeper, ref),
+  );
 }

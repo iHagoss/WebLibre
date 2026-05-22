@@ -1,1 +1,610 @@
-../../../../CHANGELOG.md
+## 0.11.0
+### GeckoView 150.0.1
+
+**Extension Management**
+
+- **Redesigned Extensions System** — The entire add-on system has been rebuilt, replacing the legacy native Android screens with a smoother in-app experience. Browse, search, install, and manage extensions all within the app.
+- **Add-on Store** — Discover recommended extensions directly in the app with segmented categories and a streamlined install flow.
+- **Add-on Detail Screens** — View permissions, internal settings, and popups for each extension without leaving the app.
+- **Pinned Add-on Bar** — Quick-access bar in the browser toolbar for your favorite extensions, with bottom-sheet popups.
+- **Update All Extensions** — One-tap button to check for and install updates for all your installed extensions at once.
+- **uBlock Origin Filter List Management** — Browse, enable, and disable individual uBlock Origin filter lists. Add custom external filter lists and apply recommended hardening filters for extra privacy.
+
+**Privacy & Security**
+
+- **Intent Gatekeeper** — When another app tries to open a link, WebLibre can now ask whether to allow or block it. Manage per-app permissions and respond from notifications without opening the browser.
+- **Screenshot Protection** — New privacy setting to block screenshots and screen recordings of the browser. Find it under Settings > Privacy & Security.
+- **Permission Shield Indicators** — The shield icon on your tab now uses colors to show your privacy status: green means enhanced protection, yellow means you've loosened settings for this site, and it's hidden when everything is at default.
+- **Third-Party Redirect Blocking** — Enabled by default to protect you from malicious redirects.
+- **Smarter Onboarding Defaults** — New users automatically get recommended privacy defaults, including uBlock Origin with optimized filter lists and engine-level privacy hardening.
+- **Fixed Site Data Clearing** — Clearing cookies or site data now properly closes affected tabs first, preventing old data from reappearing immediately.
+
+**Tab Management**
+
+- **Tree View Everywhere** — View your tabs in a hierarchical tree structure in List and Grid views too, so you can always see which tabs opened from which.
+- **Reorder Tabs in Groups** — Manually reorder tabs within groups for full control over your browsing layout.
+- **Auto-Scroll to Active Tab** — The active tab now smoothly scrolls into view when you open any tab view (list, grid, tree, or quick switcher).
+- **Pinned Tabs Respected Everywhere** — Pinned tabs now stay at the top in the quick tab switcher and grid view too, not just the list.
+- **Quick Tab Switcher Always MRU** — The quick-switcher bar always shows your most recently used tabs first for consistent muscle memory.
+- **Container Tab Colors on Title Bar** — When browsing in a container, the address bar now shows a subtle colored border matching your container's theme.
+- **New Sorting Options** — Choose whether new tabs appear at the top or bottom (or left/right) of your tab lists.
+- **Stronger Session Restore** — A new internal system reduces the chance of duplicate tabs appearing after restart.
+- **Isolated Tabs Persist** — Isolated tabs now properly survive quitting the app (only private tabs are cleared on exit).
+
+**PWAs & Home Screen Shortcuts**
+
+- **Custom Names for Shortcuts** — Give your home screen shortcuts any name you want instead of being stuck with the website's default title.
+- **Storage Context for Shortcuts** — Choose how each shortcut handles logins and data: normal storage, share with an existing container, inherit your current isolated session, or create a fresh isolated context — perfect for using multiple accounts on the same site.
+- **Multiple Shortcuts Per Site** — Pin the same website multiple times with different names and storage contexts (e.g., personal account and work account).
+- **Better Shortcut Icons** — Shortcuts now always get an icon, even for sites that don't provide one.
+- **Smarter PWA Launches** — Opening a PWA that's already open now brings it to the front instead of starting a duplicate.
+- **PWA Session Recovery** — PWAs that lose their session (e.g., after the browser is killed) now automatically recover instead of crashing.
+
+**Export & Sharing**
+
+- **Export Page as Image** — Save any webpage as a PNG image to your device.
+- **Copy Images from Image Menu** — Long-press any image to copy it directly to your clipboard.
+- **Smarter Text Sharing** — When sharing text or URLs into WebLibre from other apps, they now properly route through containers and custom tabs.
+
+**Search & Navigation**
+
+- **History Toolbar Button** — Optional quick-access button for your browsing history, available from the toolbar customization screen.
+- **Better Search Without a Default Engine** — Highlighting text and choosing to search now opens the search screen with your text pre-filled, even if no default engine is set.
+- **Fixed Address Bar Ghost Text** — Backspace and delete no longer cause suggestion text to glitch or get corrupted.
+
+**Onboarding & Setup**
+
+- **Restore Backup During Onboarding** — Import an encrypted profile backup right from the welcome screen, before creating any profile.
+- **Alpha & Stable Side by Side** — You can now keep both the stable and alpha versions installed at the same time as separate apps, so they don't interfere.
+- **Optimized Defaults** — When installing uBlock Origin during setup, you can opt in to recommended privacy filter lists automatically.
+- **Automatic Preference Migration** — A new system keeps your settings up to date automatically when new features are added.
+
+**UI & Polish**
+
+- **Redesigned Toolbar Customization** — Toolbar settings now separate buttons into "Enabled" and "Disabled" sections for a clearer overview.
+- **Long-Press Menu for Settings** — Long-press the menu button (...) in the toolbar to jump directly to Settings.
+- **Quick Quit on Long Press** — Long-press the "Quit" button in the profile menu to exit immediately, skipping the confirmation dialog.
+- **Clearer Site Data Options** — The site data cleanup screen now shows Cookies and Cached Files as sub-options under Site Data, making it easier to understand what you're clearing.
+- **Unsaved Changes Warning** — Editing a container and pressing back without saving now asks whether to save, discard, or keep editing.
+- **Better Keyboard Handling** — The bottom sheet now adjusts to the keyboard height so content is never hidden.
+- **Improved URL Display** — URLs are formatted more cleanly with better special character handling.
+- **Addon Store Screenshot Viewer** — Tap a screenshot in the addon details page to view it in a zoomable overlay.
+- **Proper Quick Action Icons** — The Android launcher long-press shortcuts now show proper icons instead of blank tiles.
+
+**Bug Fixes**
+
+- Fixed ghost text and clipping artifacts in the address bar
+- Fixed PWA launch duplication when the app was already open
+- Fixed overlapping UI elements when the floating action button is visible
+- Fixed tab bar long-press interactions
+- Fixed small web mode handling of isolated tab types
+- Fixed toolbar preview layout overlapping with the action button
+
+## 0.10.1
+### GeckoView 149.0
+
+**New Features**
+
+**Small Web Discovery**
+A brand new browsing mode to discover personal blogs, indie creators, and handcrafted websites from around the internet.
+- **Kagi Small Web** — Browse curated content from community-vetted sources in 5 modes: Web, Appreciated, Videos, Code, and Comics
+- **Wander Network** — Explore a decentralized network where personal websites recommend each other, forming a web of serendipitous discoveries
+- **Topic Filters** — Narrow discoveries by 22 categories including AI, Programming, Science, Art & Design, Gaming, Travel, and more
+- **Discovery History** — Track and revisit pages you've found, with smart avoidance of recently seen content
+
+**PWA (Progressive Web App) Support**
+- Install websites as standalone apps and create home screen shortcuts for quick access
+- Enhanced PWA installation dialog with more options
+- Fixed PWA display mode detection
+
+**Custom Backup Directory**
+- Choose where to store your profile backups — any folder on your device or external storage
+- Backups stored outside the app survive reinstallation
+- Old backups are automatically migrated when you select a new location
+- New "Skip Cache Directories" option significantly reduces backup file size
+
+**Permanent "Allow Unsigned Extensions" Setting**
+- Enable unsigned extensions permanently from Settings > Extensions > Security, instead of confirming each time
+- Includes security warnings and a confirmation dialog
+
+**Quality of Life**
+- Long press on tab bar URL to copy it to clipboard
+
+**Updates**
+
+- **Upgraded browser engine to Gecko 149.0** — Latest performance improvements and security fixes from Mozilla
+- **Updated bang data** with spec-enforced bang naming
+- **Consolidated bang groups** — The separate "assistant" bang group has been merged into the "kagi" group for simpler management (existing assistant bangs are automatically migrated)
+
+**Bug Fixes**
+
+- Fixed Small Web session occasionally showing stale/empty state after app restart
+- Fixed PWA display mode detection
+- Thumbnails are no longer captured while in fullscreen mode
+- Restored certificate requirement for installing unsigned extensions (security)
+- Fixed long press actions incorrectly forwarded in custom tabs
+- Show minimal context menu in PWA/custom tabs
+
+## 0.10.0
+### GeckoView 148.0.2
+
+**Major New Features**
+
+- **Progressive Web App (PWA) Support** - Install compatible websites directly to your home screen as standalone apps. PWAs open in their own window with their own icon, and remember which profile and container they belong to.
+
+- **Custom Tabs Integration** - Other Android apps can now open links in WebLibre using a lightweight browser overlay. Includes a close button to instantly return to the calling app, with support for private browsing mode.
+
+- **Built-in Page Translation** - Translate any webpage into your preferred language - locally on your device. The browser automatically detects the page language and offers translation options.
+
+- **Firefox Sync** - Connect your Firefox account to sync bookmarks, open tabs, and browsing history across all your devices. Set up via QR code or direct sign-in. Send tabs to your other devices and view tabs open on synced devices.
+
+- **URL Cleaner & Unshortener** - Automatically removes tracking parameters from URLs and reveals the final destination of shortened links. Based on ClearURLs rules with automatic weekly updates.
+
+- **Isolated Tabs** - A new tab type that runs in complete isolation from your other browsing, perfect for sensitive tasks like banking.
+
+- **New Browser Home Screen** - The empty tab screen is now a proper home experience with inspirational quotes, quick actions, and container-aware content.
+
+- **Dedicated Extensions Settings** - New screen to install extensions from local .xpi files and configure custom Mozilla addon collections.
+
+- **Tor Country Picker** - New searchable country picker with flags for selecting Tor entry and exit node countries.
+
+**Search & Navigation**
+
+- **Top Sites Grid** - Your most-visited sites in a customizable grid. Pin favorites, edit titles, drag to reorder, and hide unwanted sites.
+- **Customizable Search Modules** - Reorder and toggle search sections (Top Sites, Recent Tabs, History, Bookmarks, Containers).
+- **Bookmark Search** - Search your saved bookmarks directly from the search bar.
+- **Animated Tab Type Switcher** - Smooth pill-style selector for regular, private, and isolated tabs.
+
+**Export & Share**
+
+- **Print & Export Pages** - Print any webpage or save as PDF. Export page content as Markdown (clean reader content or full page), or copy as Markdown to clipboard.
+
+**Tab Management**
+
+- **Tab Filtering & Sorting** - Filter by type (regular, private, isolated) and sort by title, URL, or date range.
+- **Drag-and-Drop Container Creation** - Drag one tab onto another to create a new container with AI-suggested names.
+- **Tab List Options** - Show favicons instead of thumbnails, show/hide tab titles in quick switcher.
+
+**Privacy & Security Hardening**
+
+- **Certificate Transparency** - Enforce CT checks and CRLite for certificate revocation.
+- **WebGL Privacy** - Spoof renderer and vendor information.
+- **WebRTC IP Leak Prevention** - mDNS obfuscation, relay-only mode options.
+- **Safe Browsing** - Toggle malware and phishing protection.
+- **Geolocation Privacy** - Uses BeaconDB instead of Mozilla's service.
+- **API Restrictions** - Battery API, Reporting API, and WebGPU disabled by default.
+
+**New Settings**
+
+- **UI Scale Factor** - Adjust overall interface size.
+- **Font Size Control** - Scale web page text from 50% to 300%.
+- **Disable Animations** - Reduce motion for accessibility.
+- **Experimental Process Isolation** - Isolated content process and App Zygote for enhanced security.
+- **Reset All Preferences** - One-tap button to restore all settings to their defaults.
+
+**Customization**
+
+- **Configurable Toolbar Buttons** - Reorder, enable/disable, reset to defaults.
+- **Long-Press Actions** - Additional actions on toolbar buttons.
+
+**Improvements**
+
+- **Improved Keyboard Handling** - Better height calculation prevents hidden content.
+- **Unified Bottom Sheet Menu** - Navigation drawer replaced with consolidated bottom sheet.
+- **Settings Reorganization** - Clearer categories: General, Browsing, Web Content, Search, Extensions, Privacy & Security, Advanced, Experimental.
+- **Enhanced Onboarding** - DNS over HTTPS, toolbar customization, and privacy hardening options.
+
+**Removed**
+
+- Navigation drawer (replaced by bottom sheet menu)
+- Auto-launch docs after onboarding
+- Dismiss confirmation on bottom app bar
+
+## 0.9.32
+### GeckoView 147.0.2
+
+**Bug Fixes**
+- Fixed bookmarks routing issue
+
+## 0.9.31
+### GeckoView 147.0.2
+
+**New Features**
+- Added per-site tracking protection controls
+  - Site-specific tracking protection exceptions
+  - New tracking protection exceptions management screen
+  - Per-site permissions management (location, camera, microphone, notifications, autoplay, etc.)
+- Added clear browsing data per domain
+- Added custom tracking protection policies
+  - Granular tracking protection configuration
+  - Configurable blocking categories and levels
+  - Custom tracking protection settings screen
+- Added external download manager support
+  - Option to use external download managers instead of built-in handler
+  - Configurable in tabs behavior settings
+- Added extension installation from local XPI files
+  - Install browser extensions from local .xpi files
+- Added QR code scanner
+  - Built-in QR code scanning integrated into search field
+  - Quick access for scanning URLs
+- Added Tor entry/exit country selection
+  - Configure specific countries for Tor entry and exit nodes
+  - Enhanced Tor settings UI with country picker
+- Added "Open in App" feature
+  - Native app link handling for compatible apps
+  - Configurable app links behavior
+
+**Major UI/UX Improvements**
+- Complete browser UI scaffold replacement
+  - Better keyboard handling with bottom sheets
+  - Improved content overlay management
+  - Top bar now hides on scroll
+- Navigation drawer reorganization
+  - New dedicated navigation drawer
+  - Reorganized button placements
+  - Unified toolbar icon colors
+  - Improved profile selector bottom sheet
+- Converted dialogs to bottom sheets for better mobile UX
+  - Delete data, folder selection, profile selection, and feed selection
+- Address bar merged into search screen
+  - Unified search and URL input experience
+  - Tab editing integrated into search interface
+- App color system reorganization
+  - Consistent color scheme across entire app
+  - Improved visual hierarchy
+- Movable tab bar restore button
+  - FAB can be repositioned by user
+  - Drag to preferred location
+
+**New Settings**
+- Settings reorganization with new categories:
+  - General Settings
+  - Privacy & Security Settings
+  - Search & Content Settings
+  - Tabs & Behavior Settings
+  - Appearance & Display Settings
+  - Fingerprinting Settings
+  - Advanced Settings (renamed from Developer Settings)
+- Disable automatic clipboard access for improved privacy
+- Auto-clear unassigned tabs after configurable duration
+- Configurable search history entry count with automatic cleanup
+- Control swipe-to-refresh gesture
+- Disable double back to close tab gesture
+- External download manager toggle
+- App links handling control
+
+**Container & Tab Management**
+- Container assignment improvements
+  - Fixed container assignment for private tabs
+  - Container selection in new tab screen
+  - Better container data synchronization
+- Tab closing logic improvements
+  - Check for parent tab first when closing (fixes #155)
+  - Close assigned tab when history is empty
+  - Improved tab bar dismiss logic (fixes #157)
+- Tab view enhancements
+  - Improved initial scroll position
+  - Hide "Add New Tab" button on scroll
+  - Better grid/list scroll behavior
+
+**Bookmarks & History**
+- Bookmark all tabs dialog with fast/detailed options
+- Hide empty root folders by default
+- Long press for history navigation
+- Edit mode respected in history search
+
+**Search Enhancements**
+- Configurable search history entry count
+- Automatic search history cleanup
+- Case-insensitive suggestion matching
+- Autocomplete suggestions on tap
+
+**Tor Improvements**
+- Migrated from Arti to libtor implementation
+- Country selection for entry/exit nodes
+- Improved Tor UI and notifications
+- Custom onion icon in notifications
+
+**Developer & Debugging**
+- New dedicated error logs screen
+- Improved error logging and handling
+- Log filtering capabilities
+
+**Performance & Resource Management**
+- Improved image caching and disposal
+  - Better widget icon caching
+  - Proper image disposal to prevent memory leaks
+- Screenshot timer management improvements
+- Better database provider lifecycle management
+- Longer disposal timeout for improved resource cleanup
+
+**Visual Improvements**
+- Permission badge indicator in address bar
+- Better find-in-page widget with debouncing
+- Progress bar positioning based on toolbar location
+- Fixed PlatformView overlap issues on affected devices running old Android versions
+- Improved keyboard visibility handling
+
+**Bug Fixes**
+- Fixed container assignment issue for private tabs
+- Fixed tab bar dismiss logic (fixes #157)
+- Fixed parent tab check when closing tabs (fixes #155)
+- Fixed provider access errors on dispose
+- Fixed loading progress visibility issues
+- Fixed color issues with new app colors
+- Fixed PlatformView overlap issues
+- Fixed content overlay issues
+
+## 0.9.30
+### GeckoView 146.0.1
+
+**New Features**
+- GitHub and Google Play releases are using libre Fennec-style Gecko builds from now on (on par with F-Droid)
+- Added encrypted profile backup and restore system with password protection
+- Added bookmark import/export functionality
+  - Support for HTML (Netscape format, Firefox/Chrome compatible) and JSON formats
+  - Option to merge with existing bookmarks or replace completely
+- Added private tab tracking system
+  - Visual indicator (private icon) in address bar for private tabs
+  - "Close All Private Tabs" button in tab view
+- Added page content export capabilities
+  - Export current page as PDF file
+  - Copy page content as Markdown to clipboard
+  - Save page content as Markdown file
+- Added multiple tab view modes
+  - Grid view: Traditional grid layout
+  - List view: Compact list showing more tabs at once
+  - Tree view: Hierarchical display of tab relationships
+  - View mode preference persists across app restarts
+- Added quick tab switcher and contextual navigation bar
+  - Contextual bottom toolbar showing recently used tabs or ordered container tabs (configurable)
+  - Dismissible to maximize screen space
+- Added container filter for tree view to show container-specific tab hierarchies
+- Added ML model download progress reporting with real-time indicators
+- Added isolated container data clearing
+  - Clear cookies, cache, and browsing data for specific containers
+  - Option to clear container data on exit
+- Added quit button to profile selector for complete app exit
+- Added address bar auto-focus option for improved navigation UX
+
+**Improvements**
+- Complete tab bar overhaul
+  - Consolidated menu buttons for cleaner interface
+  - Tab reordering now opt-in via settings (not always enabled)
+  - Tab bar dismissible to maximize viewing space
+- Enhanced container color system
+  - Tab bar color now matches current container's color theme
+  - Selected containers use border instead of background color (improved visibility)
+- Redesigned search interface
+  - Improved visual hierarchy and layout
+  - Better organization of suggestions, history, and results
+  - Enhanced container chip display
+  - More efficient use of screen space
+- Improved tab handling and state management
+  - Better tab duplication logic
+  - Enhanced tab parent handling and hierarchy management
+  - Refined tab insertion process
+  - Removed tab deletion cache for simplified architecture
+- Enhanced bookmark management
+  - Assignable folder parents (move bookmarks between folders)
+  - Improved bookmark entry editing interface
+  - Better folder management and organization
+- UI/UX enhancements
+  - Tab icons displayed when screenshots unavailable
+  - Less intense chip background colors for better readability
+  - Auto-hide "Add New Tab" button for cleaner interface
+  - Automatic UI reset after 30+ minutes of inactivity
+  - Updated addon/extension layouts
+  - Various icon updates throughout the app
+
+**Bug Fixes**
+- Fixed search field focus issues preventing proper keyboard interaction
+- Fixed disposed provider exceptions that could cause crashes
+- Fixed unmounted widget exceptions
+- Fixed browser floating action button animation glitches
+- Fixed tab container provider lifecycle coordination
+- Fixed widget/provider lifecycle timing issues
+- Fixed incorrect tab hierarchy when adding multiple tabs (parent ID handling)
+- Fixed tab menu incorrectly showing for history items
+- Improved animation smoothness throughout the app
+
+## 0.9.29
+### GeckoView 145.0.2
+
+**New Features**
+- Added container site assignments to automatically open specific websites in designated containers
+- Added multi-user profiles with complete separation of browsing data, extensions, and settings
+- Added bookmarks feature
+- Added support for custom search engines via user-defined bangs
+
+**Improvements**
+- Tor now uses built-in bridges as fallback
+- Tor data storage migrated from file directory to cache
+- Arti logging now outputs to logcat
+- Tab overview now defaults to fullscreen mode (configurable in settings)
+- Visual indicator added to tab bar for Tor-tunneled tabs
+- Reorganized menu structure
+- General UI improvements and bug fixes
+
+## 0.9.28
+### GeckoView 144.0.2
+
+**New Features**
+- Added support for requesting sites in Desktop Mode
+
+**Improvements**
+- Enhanced favicon caching
+- Tor-related updates and improvements
+- UI refinements
+
+**Bug Fixes**
+- Fixed URL launch intent issues
+
+## 0.9.27
+### GeckoView 144.0
+
+**New Features**
+- Added setting to disable internal PDF viewer (pdfjs)
+- Added setting to define and select browser locales
+
+**Improvements**
+- Migrated from experimental API extension to new Gecko Preference API for most operations
+
+**Bug Fixes**
+- Fixed UI issues
+- Fixed engine crash after prolonged background inactivity
+- Fixed intent stream lifecycle issue
+
+## 0.9.26
+### GeckoView 144.0
+
+**Bug Fixes**
+- Ensure tab bar remains visible when bottom sheet is active
+- Handle AI engine errors gracefully
+- Fix container assignment when opening links
+- Fix settings toggle not refreshing UI
+
+## 0.9.25
+### GeckoView 144.0
+
+**New Features**
+- Added AI feature to group related unassigned tabs into new containers
+- Added setting to control how externally opened links are handled (now defaults to prompt)
+- Added DoH (DNS over HTTPS) setting with predefined or custom DNS resolver options
+- Added browser history view with options to view and delete history data
+- Added tab bar swipe action setting with options: "Switch to last used Tab" and "Navigate Sequential Tabs"
+- Added quick actions to open tabs via long press on home screen app icon
+- Added developer setting to support third-party CA certificates
+- Added support for custom addon collections
+- Added developer setting to customize fingerprint protection measures
+
+**Improvements**
+- Rewrote large portions of the Tor Plugin with option to route all traffic and fixed potential IP leaks (through browser side effects like loading favicons)
+- Increased Tor background service timeout from 15 minutes to 1 hour without interaction
+- Localhost URLs now default to `http` instead of `https` for better compatibility
+- Display scrollable breadcrumb representation of URLs wherever possible for improved visibility
+- Updated built-in Bangs
+- Large portions of UI rewritten and improved
+
+**Breaking Changes**
+- New database structure for bangs; saved bang frequency sorting has been reset
+
+## 0.9.24
+### GeckoView 143.0.0
+
+* Upgraded GeckoView
+
+## 0.9.23
+### GeckoView 142.0.1
+
+**New Features**
+- Added Tor Bridge support with automatic configuration and bridge updates
+- Added setting to display dialog for choosing external link handling behavior
+
+**Bug Fixes**
+- Fixed media upload issues on websites
+- Fixed hardening settings UI display problems
+
+**Improvements**
+- Enhanced bottom sheet user interface
+- Improved URI parsing and protocol detection for address bar input
+
+## 0.9.22
+### GeckoView 142.0
+
+* Added setting to use third party CA certificates
+* Added setting to control tab bar swipe behavior
+* Downgraded AGP for F-Droid compatibility
+
+## 0.9.21
+### GeckoView 142.0
+
+* Restore previous tab state on undo delete
+* Fix Reader Mode issue on back arrow navigation
+* Unhide tab bar on app resume
+
+## 0.9.20
+### GeckoView 142.0
+
+* Added 'Undo' action for closed tabs
+* Added swipe gesture to close tab
+* Added compatibility for receiving intents of various MIME types
+* Introduced Bounce Tracking Protection
+* Introduced Query Parameter Stripping as setting
+* Introduced setting to control default tab type for creating new tabs and opening links
+* Upgraded Flutter to latest stable version
+* Automatic hide tab bar on scroll
+* Sort newly created tabs after parent instead of at front
+* Set default fallback encoding for Web Feeds to UTF-8
+* Take full screen size when in fullscreen mode
+* Improved error logging
+* Filter out sensitive logs
+* Minor UI improvements
+* Fix Reader Mode issue on back navigation
+* Fix bottom sheet scrolling issues
+
+## 0.9.17
+
+* Reworked Tab UI into bottom sheet
+* Adjusted Android permissions
+* Improved Favicon handling
+
+## 0.9.16-2
+
+* Fix icon caching issue
+
+## 0.9.16-1
+
+* Fixed drop animation lag
+* Allow drop into the unassigned container
+
+## 0.9.16
+
+* Integrated on-device ai for container naming and tab sugegstions
+* Improved Tab and container UI
+
+## 0.9.15-1
+
+* Added certificate information title
+* Fixed draggable tabs
+* Open single tab in tree view automatically
+
+## 0.9.15
+
+* Improved intent handling
+* Refactored tab grid
+* Several UI improvements
+* Optimized build
+
+## 0.9.14
+
+* Bundle bangs and disable auto fetch (sync from repo still possible via settings)
+* Fix flickering after returning from home
+* Fix UI website title overflow
+* Optimize build
+
+## 0.9.13
+
+* Added option to show extensions in tab bar (through "Show Extension Shortcut" setting)
+* Added tab menu action to assign tab to container
+* Fixed QR code generation issues
+* Switched to Mozilla stable builds
+* Fixed issues with PiP and fullscreen mode
+
+## 0.9.12
+
+* Reorganized several settings into a new group: "Developer Settings"
+* Added a "Get Extensions" menu entry
+* Disabled the Cookie Banner Blocker option, as it is deprecated by Mozilla (consider using uBlock Origin instead)
+* Updated hardening presets
+* Mozilla Components upgraded
+
+## 0.9.11
+
+* Trigger automatic find-in-page when coming from local search results
+* Upgraded gecko
+* Upgraded GoRouter
+
+## 0.9.10
+
+* Initial public release

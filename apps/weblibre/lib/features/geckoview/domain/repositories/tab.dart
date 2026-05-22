@@ -674,6 +674,16 @@ class TabRepository extends _$TabRepository {
     }
   }
 
+  /// Public wrapper around [_cleanupIsolationContextIfEmpty] used by callers
+  /// outside this repository (e.g. the multi-pane PaneController) that want
+  /// to release an isolation context after swapping tabs out of a pane slot.
+  ///
+  /// See Task 39 in `memory/TASK.md` — stronger per-pane runtime isolation is
+  /// bounded by Gecko's contextual identity support (single GeckoRuntime per
+  /// process) and is not a WebLibre limitation.
+  Future<void> cleanupIsolationContextIfEmpty(String contextId) =>
+      _cleanupIsolationContextIfEmpty(contextId);
+
   Future<void> undoClose() {
     // Suppress the next reclose pass: undo can resurrect a tab whose
     // tombstone is still on disk (from a previous session); without this

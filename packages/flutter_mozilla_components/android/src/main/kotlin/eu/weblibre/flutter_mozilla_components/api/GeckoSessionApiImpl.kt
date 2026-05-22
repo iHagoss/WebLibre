@@ -280,7 +280,27 @@ class GeckoSessionApiImpl : GeckoSessionApi {
                 return
             }
 
-            components.mainBrowserEngineView?.captureThumbnail { bitmap ->
+            // Resolve the engine view to capture from.
+            //
+            // Previously this only checked [mainBrowserEngineView], which is only
+            // set for the legacy single-pane fragment. In multi-pane mode the
+            // legacy field may be null because each pane registers itself in
+            // [paneEngineViews] instead. Falling back to the focused pane's
+            // engine view (via [activeEngineView] / focused pane lookup) prevents
+            // the "No engine view available" PlatformException when taking
+            // periodic screenshots in split-pane modes.
+            val engineView = components.mainBrowserEngineView
+                ?: components.activeEngineView
+                ?: components.focusedPaneId?.let { components.paneEngineViews[it] }
+                ?: components.paneEngineViews.values.firstOrNull()
+
+            if (engineView == null) {
+                logger.warn("$TAG: No engine view available for screenshot")
+                callback(Result.failure(IllegalStateException("No engine view available")))
+                return
+            }
+
+            engineView.captureThumbnail { bitmap ->
                 try {
                     if (bitmap != null) {
                         components.core.store.dispatch(ContentAction.UpdateThumbnailAction(tab.id, bitmap))
@@ -299,9 +319,6 @@ class GeckoSessionApiImpl : GeckoSessionApi {
                     logger.error("$TAG: Failed to process screenshot", e)
                     callback(Result.failure(e))
                 }
-            } ?: run {
-                logger.warn("$TAG: No engine view available for screenshot")
-                callback(Result.failure(IllegalStateException("No engine view available")))
             }
         } catch (e: Exception) {
             logger.error("$TAG: Failed to request screenshot", e)

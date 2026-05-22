@@ -12,6 +12,8 @@
     "strict": true,
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
+    "ignoreDeprecations": "6.0",
+    "types": ["firefox-webext-browser", "mocha", "node"],
     "plugins": [{ "name": "typescript-plugin-css-modules" }]
   },
   "include": [

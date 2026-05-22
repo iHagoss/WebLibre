@@ -52,8 +52,16 @@ class BrowserHandlingScrollFeature(
     }
 
     private fun attachTouchListenerIfPossible() {
-        val engineViewRoot = GlobalComponents.components?.mainBrowserEngineView?.asView()
-        if (engineViewRoot == null) return
+        // Task 43 — auto-hide toolbar behaviour must follow the focused pane
+        // in multi-pane mode. `mainBrowserEngineView` is only assigned for
+        // the legacy single-pane fragment; in pane-aware mode the focused
+        // pane's `EngineView` is exposed via `activeEngineView`
+        // (see `Components.focusPaneEngineView`). Prefer the active engine
+        // view so the touch listener attaches to whichever pane currently
+        // drives the URL toolbar.
+        val components = GlobalComponents.components ?: return
+        val engineViewRoot = (components.activeEngineView ?: components.mainBrowserEngineView)
+            ?.asView() ?: return
 
         if (touchListener != null) return
 
@@ -192,7 +200,11 @@ class BrowserHandlingScrollFeature(
 
     private fun emitCurrentStateIfChanged() {
         val isHandling = try {
-            val engineView = GlobalComponents.components?.mainBrowserEngineView
+            // Task 43 — Same reasoning as `attachTouchListenerIfPossible`: in
+            // multi-pane mode the focused pane's `EngineView` is the source
+            // of truth, exposed via `activeEngineView`.
+            val components = GlobalComponents.components
+            val engineView = components?.activeEngineView ?: components?.mainBrowserEngineView
             if (engineView == null) {
                 false
             } else {

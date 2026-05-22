@@ -34,7 +34,8 @@
     "@types/chai": "^5.2.3",
     "@types/firefox-webext-browser": "^143.0.0",
     "@types/mocha": "^10.0.10",
-    "addons-linter": "^10.4.0",
+    "@types/node": "^22.10.5",
+    "addons-linter": "^10.5.0",
     "chai": "^6.2.2",
     "copy-webpack-plugin": "^14.0.0",
     "esm": "^3.2.25",
@@ -44,10 +45,10 @@
     "ts-mocha": "^11.1.0",
     "ts-standard": "^12.0.2",
     "tsconfig-paths-webpack-plugin": "^4.2.0",
-    "typescript": "^5.9.3",
-    "web-ext": "^9.4.0",
-    "webpack": "^5.106.2",
-    "webpack-cli": "^6.0.1"
+    "typescript": "^6.0.3",
+    "web-ext": "^10.1.0",
+    "webpack": "^5.107.1",
+    "webpack-cli": "^7.0.2"
   },
   "standardx": {
     "cache": false,

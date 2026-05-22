@@ -49,6 +49,10 @@ import 'package:weblibre/features/geckoview/features/browser/presentation/widget
 import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/browser_modules/browser_fab.dart';
 import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/browser_modules/browser_view.dart';
 import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/browser_modules/draggable_fab.dart';
+// Task 42 — `PaneModeSwitcher` is no longer rendered as a floating FAB by
+// this screen. The chip lives inside the URL toolbar `actions` row instead
+// (`PaneModeSwitcherChip` in `bottom_app_bar.dart`). The legacy widget is
+// retained as a fallback / for tests but is not imported here.
 import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/sheets/view_tab.dart';
 import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/tab_view/tab_grid_view.dart';
 import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/tab_view/tab_list_view.dart';
@@ -673,6 +677,13 @@ class BrowserScreen extends HookConsumerWidget {
                   );
                 },
               ),
+
+              // Task 42 — The pane mode switcher previously rendered as a
+              // floating draggable FAB at the bottom-right of the viewport
+              // (see git history for the prior `Positioned(... PaneModeSwitcher
+              // ...)` placement). It is now anchored inside the URL toolbar
+              // row as a chip (see `PaneModeSwitcherChip` and `bottom_app_bar
+              // .dart` actions list), so no overlay is needed here.
 
               // Layer 1: Sheet (when displayed) - positioned above toolbar
               if (sheetDisplayed)

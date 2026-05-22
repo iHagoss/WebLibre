@@ -1,0 +1,30 @@
+{
+  "manifest_version": 2,
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "cross-pane-coordinator@weblibre.eu"
+    }
+  },
+  "name": "WebLibre Cross-Pane Coordinator",
+  "version": "1.0",
+  "description": "Built-in WebExtension that coordinates messages across WebLibre split panes. One background script runs globally; one content script runs in every pane/tab and exchanges register/ping/pong messages over a named extension port. DOM is never accessed across tabs.",
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

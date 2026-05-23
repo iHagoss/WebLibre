@@ -56,6 +56,13 @@ class _MultiPaneBrowserViewState extends ConsumerState<MultiPaneBrowserView>
   late final AnimationController _swapGlowController;
   late final Animation<double> _swapGlowAnim;
 
+  /// GlobalKeys for each pane slot, used to compute hit-testing during
+  /// drag-to-swap gestures.
+  final List<GlobalKey> _paneKeys = List.generate(
+    PaneState.paneSlotCount,
+    (_) => GlobalKey(),
+  );
+
   @override
   void initState() {
     super.initState();
@@ -94,6 +101,21 @@ class _MultiPaneBrowserViewState extends ConsumerState<MultiPaneBrowserView>
     }
     ref.read(paneControllerProvider.notifier).swapPanes(source, targetIndex);
     _cancelSwapMode();
+  }
+
+  /// Returns the index of the pane whose global bounds contain [globalPos],
+  /// or `null` if none.
+  int? _paneIndexAt(Offset globalPos) {
+    for (var i = 0; i < _paneKeys.length; i++) {
+      final ctx = _paneKeys[i].currentContext;
+      if (ctx == null) continue;
+      final box = ctx.findRenderObject();
+      if (box is! RenderBox || !box.attached) continue;
+      final topLeft = box.localToGlobal(Offset.zero);
+      final rect = topLeft & box.size;
+      if (rect.contains(globalPos)) return i;
+    }
+    return null;
   }
 
   PaneState get _paneState =>
@@ -347,6 +369,7 @@ class _MultiPaneBrowserViewState extends ConsumerState<MultiPaneBrowserView>
       label: '${state.mode.semanticLabel}, pane ${index + 1}',
       focused: isFocused,
       child: _PaneWrapper(
+        key: _paneKeys[index],
         paneIndex: index,
         isFocused: isFocused,
         isSwapSource: isSwapSource,
@@ -357,6 +380,7 @@ class _MultiPaneBrowserViewState extends ConsumerState<MultiPaneBrowserView>
         onLongPressActivated: _activateSwapMode,
         onSwapRequest: _performSwap,
         onCancelSwap: _cancelSwapMode,
+        resolvePaneAt: _paneIndexAt,
         overlay: overlay,
         child: paneContent,
       ),
@@ -382,10 +406,12 @@ class _PaneWrapper extends StatefulWidget {
   final ValueChanged<int> onLongPressActivated;
   final ValueChanged<int> onSwapRequest;
   final VoidCallback onCancelSwap;
+  final int? Function(Offset globalPos) resolvePaneAt;
   final Widget? overlay;
   final Widget child;
 
   const _PaneWrapper({
+    super.key,
     required this.paneIndex,
     required this.isFocused,
     required this.isSwapSource,
@@ -396,6 +422,7 @@ class _PaneWrapper extends StatefulWidget {
     required this.onLongPressActivated,
     required this.onSwapRequest,
     required this.onCancelSwap,
+    required this.resolvePaneAt,
     required this.child,
     this.overlay,
   });
@@ -409,8 +436,21 @@ class _PaneWrapperState extends State<_PaneWrapper>
   // Duration a finger must be held before swap mode activates.
   static const _holdDuration = Duration(milliseconds: 650);
 
+  // How long the user must hold before the progress ring becomes visible.
+  // This avoids any visible "flash" of the ring on quick taps/scroll gestures
+  // and keeps general browsing feeling smooth.
+  static const _holdVisibleAfter = Duration(milliseconds: 180);
+
+  // Pointer slop: if the finger moves more than this many logical pixels
+  // before activation, treat it as a scroll/tap and abort the long-press.
+  static const double _moveSlop = 12.0;
+
   late final AnimationController _holdProgressController;
   bool _isHolding = false;
+  bool _ringVisible = false;
+  Timer? _ringVisibilityTimer;
+  Offset? _pointerDownPosition;
+  int? _hoverTargetIndex;
 
   @override
   void initState() {
@@ -426,27 +466,45 @@ class _PaneWrapperState extends State<_PaneWrapper>
 
   @override
   void dispose() {
+    _ringVisibilityTimer?.cancel();
     _holdProgressController.dispose();
     super.dispose();
   }
 
-  void _startHold() {
+  void _startHold(Offset globalPosition) {
     if (widget.isSwapMode) return; // already in swap mode
-    setState(() => _isHolding = true);
+    _pointerDownPosition = globalPosition;
+    _isHolding = true;
+    _ringVisible = false;
     _holdProgressController.reset();
     unawaited(_holdProgressController.forward());
+    // Delay showing the progress ring so quick taps/scrolls don't flash it.
+    _ringVisibilityTimer?.cancel();
+    _ringVisibilityTimer = Timer(_holdVisibleAfter, () {
+      if (!mounted || !_isHolding) return;
+      setState(() => _ringVisible = true);
+    });
   }
 
   void _endHold() {
     if (!_isHolding) return;
-    setState(() => _isHolding = false);
+    _isHolding = false;
+    _ringVisibilityTimer?.cancel();
+    _ringVisibilityTimer = null;
     if (_holdProgressController.status != AnimationStatus.completed) {
       _holdProgressController.stop();
       _holdProgressController.reset();
     }
+    if (_ringVisible) {
+      setState(() => _ringVisible = false);
+    }
+    _pointerDownPosition = null;
   }
 
   void _handleTap() {
+    // Tap focuses the pane for normal browsing, or completes a tap-to-swap
+    // when the user has lifted their finger between activation and target
+    // selection.
     if (widget.isSwapMode && !widget.isSwapSource) {
       widget.onSwapRequest(widget.paneIndex);
     } else if (widget.isSwapSource) {
@@ -456,6 +514,40 @@ class _PaneWrapperState extends State<_PaneWrapper>
     }
   }
 
+  void _onPointerMove(PointerMoveEvent event) {
+    // Abort the long-press if the finger drifts before activation.
+    if (_isHolding && _pointerDownPosition != null) {
+      final dist = (event.position - _pointerDownPosition!).distance;
+      if (dist > _moveSlop) {
+        _endHold();
+      }
+    }
+
+    // While dragging from the swap source, track which pane is under the
+    // pointer so we can highlight it and swap on release.
+    if (widget.isSwapSource) {
+      final target = widget.resolvePaneAt(event.position);
+      if (target != _hoverTargetIndex) {
+        setState(() => _hoverTargetIndex = target);
+      }
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    // If user is dragging from the source pane, complete the swap with the
+    // pane under the pointer at release time (iOS-style icon swap).
+    if (widget.isSwapSource) {
+      final target = widget.resolvePaneAt(event.position);
+      setState(() => _hoverTargetIndex = null);
+      if (target != null && target != widget.paneIndex) {
+        widget.onSwapRequest(target);
+      } else {
+        widget.onCancelSwap();
+      }
+    }
+    _endHold();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -463,19 +555,28 @@ class _PaneWrapperState extends State<_PaneWrapper>
 
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: (_) {
-        widget.onFocusRequest();
-        _startHold();
+      onPointerDown: (event) => _startHold(event.position),
+      onPointerMove: _onPointerMove,
+      onPointerUp: _onPointerUp,
+      onPointerCancel: (_) {
+        if (widget.isSwapSource) {
+          setState(() => _hoverTargetIndex = null);
+          widget.onCancelSwap();
+        }
+        _endHold();
       },
-      onPointerUp: (_) => _endHold(),
-      onPointerCancel: (_) => _endHold(),
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: _handleTap,
         child: AnimatedBuilder(
+          // Only listen to the progress controller while the ring is actually
+          // visible.  When idle, listen to a non-ticking listenable so we
+          // don't rebuild every frame and add jitter to normal browsing.
           animation: widget.isSwapSource
               ? widget.swapGlowAnim
-              : _holdProgressController,
+              : (_ringVisible
+                    ? _holdProgressController
+                    : const AlwaysStoppedAnimation<double>(0)),
           builder: (context, child) {
             // ── Border color and width ────────────────────────────────────
             Color borderColor;
@@ -486,12 +587,17 @@ class _PaneWrapperState extends State<_PaneWrapper>
               final pulse = widget.swapGlowAnim.value;
               borderWidth = 2.5 + pulse * 2.0;
               borderColor = swapColor.withValues(alpha: 0.6 + pulse * 0.4);
+            } else if (widget.isSwapMode &&
+                _hoverTargetIndex == widget.paneIndex) {
+              // Highlighted drop target while finger hovers over it.
+              borderWidth = 2.5;
+              borderColor = swapColor.withValues(alpha: 0.85);
             } else if (widget.isSwapMode) {
               // Subtle amber outline on potential drop targets.
               borderWidth = 1.0;
               borderColor = swapColor.withValues(alpha: 0.35);
             } else if (widget.isFocused) {
-              // Standard focus glow (primary colour, static).
+              // Standard focus glow (primary colour, static – no pulse).
               borderWidth = 1.0;
               borderColor = widget.focusBorderColor;
             } else {
@@ -515,7 +621,7 @@ class _PaneWrapperState extends State<_PaneWrapper>
               if (widget.overlay != null)
                 Positioned.fill(child: widget.overlay!),
               // ── Hold-progress ring overlay ───────────────────────────
-              if (_isHolding)
+              if (_ringVisible)
                 Positioned.fill(
                   child: IgnorePointer(
                     child: AnimatedBuilder(
@@ -550,7 +656,7 @@ class _PaneWrapperState extends State<_PaneWrapper>
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Text(
-                              'Tap another pane to swap',
+                              'Drag to another pane to swap',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,

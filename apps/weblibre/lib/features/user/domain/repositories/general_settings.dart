@@ -248,6 +248,24 @@ class GeneralSettingsRepository extends _$GeneralSettingsRepository {
       'externalAppIntentPolicies': settings['externalAppIntentPolicies']
           ?.readAs(DriftSqlType.string, db.typeMapping)
           .mapNotNull(jsonDecode),
+      'homepageOpeningScreen': settings['homepageOpeningScreen']?.readAs(
+        DriftSqlType.string,
+        db.typeMapping,
+      ),
+      'homepageShowJumpBackIn': settings['homepageShowJumpBackIn']?.readAs(
+        DriftSqlType.bool,
+        db.typeMapping,
+      ),
+      'homepageShowBookmarks': settings['homepageShowBookmarks']?.readAs(
+        DriftSqlType.bool,
+        db.typeMapping,
+      ),
+      'homepageShowRecentlyVisited': settings['homepageShowRecentlyVisited']
+          ?.readAs(DriftSqlType.bool, db.typeMapping),
+      'toolbarHeightSize': settings['toolbarHeightSize']?.readAs(
+        DriftSqlType.string,
+        db.typeMapping,
+      ),
     });
   }
 

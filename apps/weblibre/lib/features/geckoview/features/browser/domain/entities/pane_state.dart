@@ -47,7 +47,8 @@ class PaneState {
 
   /// Lower clamp for divider fractions so a pane cannot shrink past a
   /// thumb-friendly minimum (~15% of the available axis).
-  static const double _minSplit = 0.15;
+  static const double minSplit = 0.15;
+  static const double _minSplit = minSplit;
 
   final PaneMode mode;
 

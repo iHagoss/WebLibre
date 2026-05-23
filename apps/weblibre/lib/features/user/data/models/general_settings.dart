@@ -52,6 +52,13 @@ enum TabBarPosition { top, bottom }
 
 enum TabBarLayout { withTitle, compact }
 
+/// Which screen to show when the browser opens / a new tab is started.
+enum HomepageOpeningScreen { homepage, lastTab, homepageAfterFourHours }
+
+/// Scale applied to the contextual toolbar height.
+/// compact ≈ 75 %, normal = 100 %, large ≈ 125 %.
+enum ToolbarHeightSize { compact, normal, large }
+
 enum DeleteBrowsingDataType {
   tabs('Open tabs'),
   history('Browsing history'),
@@ -125,6 +132,15 @@ class GeneralSettings with FastEquatable {
   final bool blockExternalAppsEnabled;
   final Map<String, IntentSourcePolicy> externalAppIntentPolicies;
 
+  // ── Homepage settings ─────────────────────────────────────────────────────
+  final HomepageOpeningScreen homepageOpeningScreen;
+  final bool homepageShowJumpBackIn;
+  final bool homepageShowBookmarks;
+  final bool homepageShowRecentlyVisited;
+
+  // ── Toolbar height ─────────────────────────────────────────────────────────
+  final ToolbarHeightSize toolbarHeightSize;
+
   GeneralSettings({
     required this.themeMode,
     required this.uiScaleFactor,
@@ -179,6 +195,11 @@ class GeneralSettings with FastEquatable {
     required this.allowNonManifestPwaInstall,
     required this.blockExternalAppsEnabled,
     required this.externalAppIntentPolicies,
+    required this.homepageOpeningScreen,
+    required this.homepageShowJumpBackIn,
+    required this.homepageShowBookmarks,
+    required this.homepageShowRecentlyVisited,
+    required this.toolbarHeightSize,
   });
 
   GeneralSettings.withDefaults({
@@ -235,6 +256,11 @@ class GeneralSettings with FastEquatable {
     bool? allowNonManifestPwaInstall,
     bool? blockExternalAppsEnabled,
     Map<String, IntentSourcePolicy>? externalAppIntentPolicies,
+    HomepageOpeningScreen? homepageOpeningScreen,
+    bool? homepageShowJumpBackIn,
+    bool? homepageShowBookmarks,
+    bool? homepageShowRecentlyVisited,
+    ToolbarHeightSize? toolbarHeightSize,
   }) : themeMode = themeMode ?? ThemeMode.dark,
        uiScaleFactor = uiScaleFactor ?? defaultUiScaleFactor,
        disableAnimations = disableAnimations ?? false,
@@ -297,7 +323,13 @@ class GeneralSettings with FastEquatable {
        unshortenerToken = unshortenerToken ?? '',
        allowNonManifestPwaInstall = allowNonManifestPwaInstall ?? false,
        blockExternalAppsEnabled = blockExternalAppsEnabled ?? false,
-       externalAppIntentPolicies = externalAppIntentPolicies ?? const {};
+       externalAppIntentPolicies = externalAppIntentPolicies ?? const {},
+       homepageOpeningScreen =
+           homepageOpeningScreen ?? HomepageOpeningScreen.lastTab,
+       homepageShowJumpBackIn = homepageShowJumpBackIn ?? true,
+       homepageShowBookmarks = homepageShowBookmarks ?? true,
+       homepageShowRecentlyVisited = homepageShowRecentlyVisited ?? true,
+       toolbarHeightSize = toolbarHeightSize ?? ToolbarHeightSize.normal;
 
   factory GeneralSettings.fromJson(Map<String, dynamic> json) {
     // Migrate legacy `newTabPosition` setting to direction settings.
@@ -347,6 +379,19 @@ class GeneralSettings with FastEquatable {
       return QuickTabSwitcherMode.lastUsedTabs;
     }
     return quickTabSwitcherMode;
+  }
+
+  /// Multiplier applied to the standard Material `kToolbarHeight` so the
+  /// user can free up additional web-page real estate. ~75% / 100% / 125%.
+  double get toolbarHeightFactor {
+    switch (toolbarHeightSize) {
+      case ToolbarHeightSize.compact:
+        return 0.75;
+      case ToolbarHeightSize.normal:
+        return 1.0;
+      case ToolbarHeightSize.large:
+        return 1.25;
+    }
   }
 
   @override
@@ -404,5 +449,10 @@ class GeneralSettings with FastEquatable {
     allowNonManifestPwaInstall,
     blockExternalAppsEnabled,
     externalAppIntentPolicies,
+    homepageOpeningScreen,
+    homepageShowJumpBackIn,
+    homepageShowBookmarks,
+    homepageShowRecentlyVisited,
+    toolbarHeightSize,
   ];
 }

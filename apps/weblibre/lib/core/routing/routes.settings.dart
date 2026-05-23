@@ -27,6 +27,10 @@ part of 'routes.dart';
       name: 'GeneralSettingsRoute',
       path: 'general',
     ),
+    TypedGoRoute<HomepageSettingsRoute>(
+      name: 'HomepageSettingsRoute',
+      path: 'homepage',
+    ),
     TypedGoRoute<BrowsingSettingsRoute>(
       name: 'BrowsingSettingsRoute',
       path: 'browsing',
@@ -122,6 +126,13 @@ class GeneralSettingsRoute extends GoRouteData with $GeneralSettingsRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) {
     return const GeneralSettingsScreen();
+  }
+}
+
+class HomepageSettingsRoute extends GoRouteData with $HomepageSettingsRoute {
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    return const HomepageSettingsScreen();
   }
 }
 

@@ -133,6 +133,18 @@ abstract class _$GeneralSettingsCWProxy {
     Map<String, IntentSourcePolicy> externalAppIntentPolicies,
   );
 
+  GeneralSettings homepageOpeningScreen(
+    HomepageOpeningScreen homepageOpeningScreen,
+  );
+
+  GeneralSettings homepageShowJumpBackIn(bool homepageShowJumpBackIn);
+
+  GeneralSettings homepageShowBookmarks(bool homepageShowBookmarks);
+
+  GeneralSettings homepageShowRecentlyVisited(bool homepageShowRecentlyVisited);
+
+  GeneralSettings toolbarHeightSize(ToolbarHeightSize toolbarHeightSize);
+
   /// Creates a new instance with the provided field values.
   /// Passing `null` to a nullable field nullifies it, while `null` for a non-nullable field is ignored. To update a single field use `GeneralSettings(...).copyWith.fieldName(value)`.
   ///
@@ -194,6 +206,11 @@ abstract class _$GeneralSettingsCWProxy {
     bool allowNonManifestPwaInstall,
     bool blockExternalAppsEnabled,
     Map<String, IntentSourcePolicy> externalAppIntentPolicies,
+    HomepageOpeningScreen homepageOpeningScreen,
+    bool homepageShowJumpBackIn,
+    bool homepageShowBookmarks,
+    bool homepageShowRecentlyVisited,
+    ToolbarHeightSize toolbarHeightSize,
   });
 }
 
@@ -431,6 +448,28 @@ class _$GeneralSettingsCWProxyImpl implements _$GeneralSettingsCWProxy {
   ) => call(externalAppIntentPolicies: externalAppIntentPolicies);
 
   @override
+  GeneralSettings homepageOpeningScreen(
+    HomepageOpeningScreen homepageOpeningScreen,
+  ) => call(homepageOpeningScreen: homepageOpeningScreen);
+
+  @override
+  GeneralSettings homepageShowJumpBackIn(bool homepageShowJumpBackIn) =>
+      call(homepageShowJumpBackIn: homepageShowJumpBackIn);
+
+  @override
+  GeneralSettings homepageShowBookmarks(bool homepageShowBookmarks) =>
+      call(homepageShowBookmarks: homepageShowBookmarks);
+
+  @override
+  GeneralSettings homepageShowRecentlyVisited(
+    bool homepageShowRecentlyVisited,
+  ) => call(homepageShowRecentlyVisited: homepageShowRecentlyVisited);
+
+  @override
+  GeneralSettings toolbarHeightSize(ToolbarHeightSize toolbarHeightSize) =>
+      call(toolbarHeightSize: toolbarHeightSize);
+
+  @override
   /// Creates a new instance with the provided field values.
   /// Passing `null` to a nullable field nullifies it, while `null` for a non-nullable field is ignored. To update a single field use `GeneralSettings(...).copyWith.fieldName(value)`.
   ///
@@ -493,6 +532,11 @@ class _$GeneralSettingsCWProxyImpl implements _$GeneralSettingsCWProxy {
     Object? allowNonManifestPwaInstall = const $CopyWithPlaceholder(),
     Object? blockExternalAppsEnabled = const $CopyWithPlaceholder(),
     Object? externalAppIntentPolicies = const $CopyWithPlaceholder(),
+    Object? homepageOpeningScreen = const $CopyWithPlaceholder(),
+    Object? homepageShowJumpBackIn = const $CopyWithPlaceholder(),
+    Object? homepageShowBookmarks = const $CopyWithPlaceholder(),
+    Object? homepageShowRecentlyVisited = const $CopyWithPlaceholder(),
+    Object? toolbarHeightSize = const $CopyWithPlaceholder(),
   }) {
     return GeneralSettings(
       themeMode: themeMode == const $CopyWithPlaceholder() || themeMode == null
@@ -807,6 +851,36 @@ class _$GeneralSettingsCWProxyImpl implements _$GeneralSettingsCWProxy {
           ? _value.externalAppIntentPolicies
           // ignore: cast_nullable_to_non_nullable
           : externalAppIntentPolicies as Map<String, IntentSourcePolicy>,
+      homepageOpeningScreen:
+          homepageOpeningScreen == const $CopyWithPlaceholder() ||
+              homepageOpeningScreen == null
+          ? _value.homepageOpeningScreen
+          // ignore: cast_nullable_to_non_nullable
+          : homepageOpeningScreen as HomepageOpeningScreen,
+      homepageShowJumpBackIn:
+          homepageShowJumpBackIn == const $CopyWithPlaceholder() ||
+              homepageShowJumpBackIn == null
+          ? _value.homepageShowJumpBackIn
+          // ignore: cast_nullable_to_non_nullable
+          : homepageShowJumpBackIn as bool,
+      homepageShowBookmarks:
+          homepageShowBookmarks == const $CopyWithPlaceholder() ||
+              homepageShowBookmarks == null
+          ? _value.homepageShowBookmarks
+          // ignore: cast_nullable_to_non_nullable
+          : homepageShowBookmarks as bool,
+      homepageShowRecentlyVisited:
+          homepageShowRecentlyVisited == const $CopyWithPlaceholder() ||
+              homepageShowRecentlyVisited == null
+          ? _value.homepageShowRecentlyVisited
+          // ignore: cast_nullable_to_non_nullable
+          : homepageShowRecentlyVisited as bool,
+      toolbarHeightSize:
+          toolbarHeightSize == const $CopyWithPlaceholder() ||
+              toolbarHeightSize == null
+          ? _value.toolbarHeightSize
+          // ignore: cast_nullable_to_non_nullable
+          : toolbarHeightSize as ToolbarHeightSize,
     );
   }
 }
@@ -928,6 +1002,17 @@ GeneralSettings _$GeneralSettingsFromJson(
       (json['externalAppIntentPolicies'] as Map<String, dynamic>?)?.map(
         (k, e) => MapEntry(k, $enumDecode(_$IntentSourcePolicyEnumMap, e)),
       ),
+  homepageOpeningScreen: $enumDecodeNullable(
+    _$HomepageOpeningScreenEnumMap,
+    json['homepageOpeningScreen'],
+  ),
+  homepageShowJumpBackIn: json['homepageShowJumpBackIn'] as bool?,
+  homepageShowBookmarks: json['homepageShowBookmarks'] as bool?,
+  homepageShowRecentlyVisited: json['homepageShowRecentlyVisited'] as bool?,
+  toolbarHeightSize: $enumDecodeNullable(
+    _$ToolbarHeightSizeEnumMap,
+    json['toolbarHeightSize'],
+  ),
 );
 
 Map<String, dynamic> _$GeneralSettingsToJson(
@@ -999,6 +1084,12 @@ Map<String, dynamic> _$GeneralSettingsToJson(
   'externalAppIntentPolicies': instance.externalAppIntentPolicies.map(
     (k, e) => MapEntry(k, _$IntentSourcePolicyEnumMap[e]!),
   ),
+  'homepageOpeningScreen':
+      _$HomepageOpeningScreenEnumMap[instance.homepageOpeningScreen]!,
+  'homepageShowJumpBackIn': instance.homepageShowJumpBackIn,
+  'homepageShowBookmarks': instance.homepageShowBookmarks,
+  'homepageShowRecentlyVisited': instance.homepageShowRecentlyVisited,
+  'toolbarHeightSize': _$ToolbarHeightSizeEnumMap[instance.toolbarHeightSize]!,
 };
 
 const _$ThemeModeEnumMap = {
@@ -1066,4 +1157,16 @@ const _$QuickTabSwitcherModeEnumMap = {
 const _$IntentSourcePolicyEnumMap = {
   IntentSourcePolicy.allow: 'allow',
   IntentSourcePolicy.block: 'block',
+};
+
+const _$HomepageOpeningScreenEnumMap = {
+  HomepageOpeningScreen.homepage: 'homepage',
+  HomepageOpeningScreen.lastTab: 'lastTab',
+  HomepageOpeningScreen.homepageAfterFourHours: 'homepageAfterFourHours',
+};
+
+const _$ToolbarHeightSizeEnumMap = {
+  ToolbarHeightSize.compact: 'compact',
+  ToolbarHeightSize.normal: 'normal',
+  ToolbarHeightSize.large: 'large',
 };

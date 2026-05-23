@@ -39,6 +39,7 @@ class SettingsScreen extends HookConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12.0),
               children: const [
                 _GeneralTile(),
+                _HomepageTile(),
                 _BrowsingTile(),
                 _ToolbarLayoutTile(),
                 _WebContentTile(),
@@ -75,6 +76,31 @@ class _GeneralTile extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right),
         onTap: () async {
           await GeneralSettingsRoute().push(context);
+        },
+      ),
+    );
+  }
+}
+
+class _HomepageTile extends StatelessWidget {
+  const _HomepageTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        title: const Text('Homepage'),
+        subtitle: const Text('Opening screen, shortcuts'),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 8.0,
+          horizontal: 16.0,
+        ),
+        leading: const Icon(Icons.home_outlined),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () async {
+          await HomepageSettingsRoute().push(context);
         },
       ),
     );

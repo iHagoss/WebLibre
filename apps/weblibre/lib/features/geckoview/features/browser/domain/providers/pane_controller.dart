@@ -207,6 +207,33 @@ class PaneController extends _$PaneController {
     }
   }
 
+  /// Swaps the tab assignments between two pane slots. Used by the
+  /// long-press drag-and-swap gesture in [MultiPaneBrowserView].
+  void swapPanes(int a, int b) {
+    if (a == b) return;
+    if (a < 0 || a >= PaneState.paneSlotCount) return;
+    if (b < 0 || b >= PaneState.paneSlotCount) return;
+
+    final updated = List<String?>.from(state.paneTabIds);
+    final temp = updated[a];
+    updated[a] = updated[b];
+    updated[b] = temp;
+
+    // Keep focus on the pane that the user originally selected as the source.
+    final newFocus = state.focusedPaneIndex == a
+        ? b
+        : state.focusedPaneIndex == b
+            ? a
+            : state.focusedPaneIndex;
+
+    state = state.copyWith(paneTabIds: updated, focusedPaneIndex: newFocus);
+
+    final focusedTabId = state.focusedTabId;
+    if (focusedTabId != null) {
+      unawaitedSelectTab(focusedTabId);
+    }
+  }
+
   void setThreePortraitLayout(ThreePanePortraitLayout layout) {
     if (state.threePortraitLayout == layout) return;
 

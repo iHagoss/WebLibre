@@ -72,6 +72,7 @@ import 'package:weblibre/features/settings/presentation/screens/experimental_set
 import 'package:weblibre/features/settings/presentation/screens/extensions_settings.dart';
 import 'package:weblibre/features/settings/presentation/screens/fingerprint_settings.dart';
 import 'package:weblibre/features/settings/presentation/screens/general_settings.dart';
+import 'package:weblibre/features/settings/presentation/screens/homepage_settings.dart';
 import 'package:weblibre/features/settings/presentation/screens/locale_settings.dart';
 import 'package:weblibre/features/settings/presentation/screens/privacy_security_settings.dart';
 import 'package:weblibre/features/settings/presentation/screens/search_settings.dart';

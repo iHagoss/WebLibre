@@ -41,6 +41,7 @@ class ToolbarLayoutContent extends StatelessWidget {
         SettingSection(name: 'Contextual Toolbar'),
         _ShowContextualTabBarTile(),
         _CustomizeToolbarButtonsTile(),
+        _ToolbarHeightSection(),
         SettingSection(name: 'Quick Tab Switcher'),
         _ShowQuickTabSwitcherBarTile(),
         _QuickTabSwitcherModeSection(),
@@ -480,4 +481,64 @@ class _TabListShowFaviconsTile extends HookConsumerWidget {
       },
     );
   }
+
+class _ToolbarHeightSection extends HookConsumerWidget {
+  const _ToolbarHeightSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final toolbarHeightSize = ref.watch(
+      generalSettingsWithDefaultsProvider.select((s) => s.toolbarHeightSize),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ListTile(
+            title: Text('Toolbar Height'),
+            subtitle: Text('Adjust toolbar size to maximize web page space'),
+            leading: Icon(MdiIcons.arrowExpandVertical),
+            contentPadding: EdgeInsets.zero,
+          ),
+          RadioGroup(
+            groupValue: toolbarHeightSize,
+            onChanged: (value) async {
+              if (value != null) {
+                await ref
+                    .read(saveGeneralSettingsControllerProvider.notifier)
+                    .save(
+                      (currentSettings) =>
+                          currentSettings.copyWith.toolbarHeightSize(value),
+                    );
+              }
+            },
+            child: const Column(
+              children: [
+                RadioListTile.adaptive(
+                  value: ToolbarHeightSize.compact,
+                  title: Text('Compact (75%)'),
+                  subtitle: Text('Smaller toolbar for maximum web page space'),
+                ),
+                RadioListTile.adaptive(
+                  value: ToolbarHeightSize.normal,
+                  title: Text('Normal (100%)'),
+                  subtitle: Text('Standard toolbar height'),
+                ),
+                RadioListTile.adaptive(
+                  value: ToolbarHeightSize.large,
+                  title: Text('Large (125%)'),
+                  subtitle: Text('Larger toolbar for easier touch targets'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 }

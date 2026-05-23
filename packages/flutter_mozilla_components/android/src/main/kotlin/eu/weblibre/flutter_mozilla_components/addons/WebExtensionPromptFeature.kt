@@ -48,6 +48,17 @@ class WebExtensionPromptFeature(
     private var scope: CoroutineScope? = null
 
     /**
+     * Tracks prompt requests whose onConfirm has already been invoked, to avoid
+     * completing the underlying GeckoResult twice (which throws
+     * IllegalStateException: "result is already complete"). This can happen e.g.
+     * if the user double-taps the Allow/Deny button before the dialog dismisses,
+     * or if re-attached handlers fire alongside the original ones.
+     */
+    private val handledPromptRequests = java.util.Collections.newSetFromMap(
+        java.util.WeakHashMap<WebExtensionPromptRequest.AfterInstallation.Permissions, Boolean>()
+    )
+
+    /**
      * Starts observing the selected session to listen for window requests
      * and opens / closes tabs as needed.
      */
@@ -256,6 +267,11 @@ class WebExtensionPromptFeature(
         privateBrowsingAllowed: Boolean,
         technicalAndInteractionDataGranted: Boolean,
     ) {
+        // Guard against double-invocation: completing the same GeckoResult twice
+        // crashes the app ("IllegalStateException: result is already complete").
+        if (!handledPromptRequests.add(promptRequest)) {
+            return
+        }
         when (promptRequest) {
             is WebExtensionPromptRequest.AfterInstallation.Permissions.Optional -> {
                 promptRequest.onConfirm(granted)

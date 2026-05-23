@@ -25,7 +25,7 @@ import 'package:weblibre/features/geckoview/features/browser/domain/entities/pan
 import 'package:weblibre/features/geckoview/features/browser/domain/entities/pane_state.dart';
 import 'package:weblibre/features/geckoview/features/browser/domain/providers/pane_controller.dart';
 
-class MultiPaneBrowserView extends ConsumerWidget {
+class MultiPaneBrowserView extends ConsumerStatefulWidget {
   static const double _paneGutter = 1.0;
 
   final PaneState? paneState;
@@ -40,39 +40,94 @@ class MultiPaneBrowserView extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final PaneState paneState =
-        this.paneState ?? ref.watch(paneControllerProvider);
+  ConsumerState<MultiPaneBrowserView> createState() =>
+      _MultiPaneBrowserViewState();
+}
 
+class _MultiPaneBrowserViewState extends ConsumerState<MultiPaneBrowserView>
+    with TickerProviderStateMixin {
+  /// The pane index selected as source for a drag-swap, or null when swap mode
+  /// is inactive.
+  int? _swapSourceIndex;
+
+  /// Animation controller for the pulsing glow on the swap-source pane.
+  late final AnimationController _swapGlowController;
+  late final Animation<double> _swapGlowAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _swapGlowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _swapGlowAnim = CurvedAnimation(
+      parent: _swapGlowController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _swapGlowController.dispose();
+    super.dispose();
+  }
+
+  void _activateSwapMode(int index) {
+    setState(() => _swapSourceIndex = index);
+    _swapGlowController.repeat(reverse: true);
+  }
+
+  void _cancelSwapMode() {
+    setState(() => _swapSourceIndex = null);
+    _swapGlowController.stop();
+    _swapGlowController.value = 0;
+  }
+
+  void _performSwap(int targetIndex) {
+    final source = _swapSourceIndex;
+    if (source == null || source == targetIndex) {
+      _cancelSwapMode();
+      return;
+    }
+    ref.read(paneControllerProvider.notifier).swapPanes(source, targetIndex);
+    _cancelSwapMode();
+  }
+
+  PaneState get _paneState =>
+      widget.paneState ?? ref.watch(paneControllerProvider);
+
+  @override
+  Widget build(BuildContext context) {
+    final paneState = _paneState;
     return LayoutBuilder(
       builder: (context, constraints) {
         final isPortrait = constraints.maxHeight >= constraints.maxWidth;
-        return _buildLayout(context, ref, paneState, isPortrait);
+        return _buildLayout(context, paneState, isPortrait, constraints);
       },
     );
   }
 
   Widget _buildLayout(
     BuildContext context,
-    WidgetRef ref,
     PaneState state,
     bool isPortrait,
+    BoxConstraints constraints,
   ) {
     switch (state.mode) {
       case PaneMode.single:
-        return _paneAt(context, ref, state, 0);
+        return _paneAt(context, state, 0);
       case PaneMode.two:
-        return _twoPaneLayout(context, ref, state, isPortrait);
+        return _twoPaneLayout(context, state, isPortrait);
       case PaneMode.three:
-        return _threePaneLayout(context, ref, state, isPortrait);
+        return _threePaneLayout(context, state, isPortrait);
       case PaneMode.four:
-        return _fourPaneLayout(context, ref, state);
+        return _fourPaneLayout(context, state, constraints);
     }
   }
 
   Widget _twoPaneLayout(
     BuildContext context,
-    WidgetRef ref,
     PaneState state,
     bool isPortrait,
   ) {
@@ -82,140 +137,117 @@ class MultiPaneBrowserView extends ConsumerWidget {
       onFractionChanged: (f) => ref
           .read(paneControllerProvider.notifier)
           .setSplit(isPortrait ? PaneSplit.vertical : PaneSplit.horizontal, f),
-      first: _paneAt(context, ref, state, 0),
-      second: _paneAt(context, ref, state, 1),
+      first: _paneAt(context, state, 0),
+      second: _paneAt(context, state, 1),
     );
   }
 
   Widget _threePaneLayout(
     BuildContext context,
-    WidgetRef ref,
     PaneState state,
     bool isPortrait,
   ) {
     if (isPortrait) {
       if (state.threePortraitLayout == ThreePanePortraitLayout.equalColumns) {
-        // Honour the user's explicit layout choice on every screen size.
-        // The previous minimum-column-width fallback silently reverted the
-        // selected Columns3 layout on phone-class widths, which read to
-        // users as "Columns3 doesn't work at all".
-        return _equalRow(context, ref, state, [0, 1, 2]);
+        return _equalRow(context, state, [0, 1, 2]);
       }
-
       if (state.threePortraitLayout == ThreePanePortraitLayout.equalRows) {
-        // Three equal-height panes stacked top-to-bottom in portrait.
-        return _equalColumn(context, ref, state, [0, 1, 2]);
+        return _equalColumn(context, state, [0, 1, 2]);
       }
-
-      return _portraitDefaultThreePane(context, ref, state);
+      return _portraitDefaultThreePane(context, state);
     }
 
     if (state.threeLandscapeLayout == ThreePaneLandscapeLayout.equalRows) {
-      // Same fix for landscape Rows3: respect the user's explicit choice
-      // instead of silently falling back when each row would be < 200 px.
-      return _equalColumn(context, ref, state, [0, 1, 2]);
+      return _equalColumn(context, state, [0, 1, 2]);
     }
-
     if (state.threeLandscapeLayout == ThreePaneLandscapeLayout.equalColumns) {
-      // Three equal-width panes side-by-side in landscape.
-      return _equalRow(context, ref, state, [0, 1, 2]);
+      return _equalRow(context, state, [0, 1, 2]);
     }
-
-    return _landscapeDefaultThreePane(context, ref, state);
+    return _landscapeDefaultThreePane(context, state);
   }
 
-  Widget _portraitDefaultThreePane(
-    BuildContext context,
-    WidgetRef ref,
-    PaneState state,
-  ) {
+  Widget _portraitDefaultThreePane(BuildContext context, PaneState state) {
     return _SplitContainer(
       axis: Axis.vertical,
       fraction: state.splitV,
       onFractionChanged: (f) => ref
           .read(paneControllerProvider.notifier)
           .setSplit(PaneSplit.vertical, f),
-      first: _paneAt(context, ref, state, 0),
+      first: _paneAt(context, state, 0),
       second: _SplitContainer(
         axis: Axis.horizontal,
         fraction: state.splitSecondary,
         onFractionChanged: (f) => ref
             .read(paneControllerProvider.notifier)
             .setSplit(PaneSplit.secondary, f),
-        first: _paneAt(context, ref, state, 1),
-        second: _paneAt(context, ref, state, 2),
+        first: _paneAt(context, state, 1),
+        second: _paneAt(context, state, 2),
       ),
     );
   }
 
-  Widget _landscapeDefaultThreePane(
-    BuildContext context,
-    WidgetRef ref,
-    PaneState state,
-  ) {
+  Widget _landscapeDefaultThreePane(BuildContext context, PaneState state) {
     return _SplitContainer(
       axis: Axis.horizontal,
       fraction: state.splitH,
       onFractionChanged: (f) => ref
           .read(paneControllerProvider.notifier)
           .setSplit(PaneSplit.horizontal, f),
-      first: _paneAt(context, ref, state, 0),
+      first: _paneAt(context, state, 0),
       second: _SplitContainer(
         axis: Axis.vertical,
         fraction: state.splitSecondary,
         onFractionChanged: (f) => ref
             .read(paneControllerProvider.notifier)
             .setSplit(PaneSplit.secondary, f),
-        first: _paneAt(context, ref, state, 1),
-        second: _paneAt(context, ref, state, 2),
+        first: _paneAt(context, state, 1),
+        second: _paneAt(context, state, 2),
       ),
     );
   }
 
-  Widget _equalRow(
-    BuildContext context,
-    WidgetRef ref,
-    PaneState state,
-    List<int> indices,
-  ) {
+  Widget _equalRow(BuildContext context, PaneState state, List<int> indices) {
     final children = <Widget>[];
-
     for (var i = 0; i < indices.length; i++) {
       if (i > 0) {
         children.add(
-          Container(width: _paneGutter, color: Theme.of(context).dividerColor),
+          Container(
+            width: MultiPaneBrowserView._paneGutter,
+            color: Theme.of(context).dividerColor,
+          ),
         );
       }
-
-      children.add(Expanded(child: _paneAt(context, ref, state, indices[i])));
+      children.add(Expanded(child: _paneAt(context, state, indices[i])));
     }
-
     return Row(children: children);
   }
 
   Widget _equalColumn(
     BuildContext context,
-    WidgetRef ref,
     PaneState state,
     List<int> indices,
   ) {
     final children = <Widget>[];
-
     for (var i = 0; i < indices.length; i++) {
       if (i > 0) {
         children.add(
-          Container(height: _paneGutter, color: Theme.of(context).dividerColor),
+          Container(
+            height: MultiPaneBrowserView._paneGutter,
+            color: Theme.of(context).dividerColor,
+          ),
         );
       }
-
-      children.add(Expanded(child: _paneAt(context, ref, state, indices[i])));
+      children.add(Expanded(child: _paneAt(context, state, indices[i])));
     }
-
     return Column(children: children);
   }
 
-  Widget _fourPaneLayout(BuildContext context, WidgetRef ref, PaneState state) {
-    return _SplitContainer(
+  Widget _fourPaneLayout(
+    BuildContext context,
+    PaneState state,
+    BoxConstraints constraints,
+  ) {
+    final grid = _SplitContainer(
       axis: Axis.vertical,
       fraction: state.splitV,
       onFractionChanged: (f) => ref
@@ -227,8 +259,8 @@ class MultiPaneBrowserView extends ConsumerWidget {
         onFractionChanged: (f) => ref
             .read(paneControllerProvider.notifier)
             .setSplit(PaneSplit.horizontal, f),
-        first: _paneAt(context, ref, state, 0),
-        second: _paneAt(context, ref, state, 1),
+        first: _paneAt(context, state, 0),
+        second: _paneAt(context, state, 1),
       ),
       second: _SplitContainer(
         axis: Axis.horizontal,
@@ -236,24 +268,53 @@ class MultiPaneBrowserView extends ConsumerWidget {
         onFractionChanged: (f) => ref
             .read(paneControllerProvider.notifier)
             .setSplit(PaneSplit.secondary, f),
-        first: _paneAt(context, ref, state, 2),
-        second: _paneAt(context, ref, state, 3),
+        first: _paneAt(context, state, 2),
+        second: _paneAt(context, state, 3),
       ),
     );
+
+    // Overlay a draggable corner handle at the intersection of the H and V
+    // splits so the user can resize diagonally in a single gesture.
+    if (constraints.maxWidth > 0 && constraints.maxHeight > 0) {
+      return Stack(
+        children: [
+          grid,
+          _CornerDragHandle(
+            splitH: state.splitH,
+            splitV: state.splitV,
+            totalWidth: constraints.maxWidth,
+            totalHeight: constraints.maxHeight,
+            onDrag: (dx, dy) {
+              final newH = (state.splitH + dx / constraints.maxWidth).clamp(
+                PaneState.minSplit,
+                1 - PaneState.minSplit,
+              );
+              final newV = (state.splitV + dy / constraints.maxHeight).clamp(
+                PaneState.minSplit,
+                1 - PaneState.minSplit,
+              );
+              ref
+                  .read(paneControllerProvider.notifier)
+                  .setSplit(PaneSplit.horizontal, newH);
+              ref
+                  .read(paneControllerProvider.notifier)
+                  .setSplit(PaneSplit.vertical, newV);
+            },
+          ),
+        ],
+      );
+    }
+
+    return grid;
   }
 
-  Widget _paneAt(
-    BuildContext context,
-    WidgetRef ref,
-    PaneState state,
-    int index,
-  ) {
+  Widget _paneAt(BuildContext context, PaneState state, int index) {
     final paneId = 'pane-$index';
     final tabId = state.paneTabIds[index];
     final isFocused = state.focusedPaneIndex == index;
-
-    final focusBorderColor = Theme.of(context).colorScheme.primary;
-    final overlay = isFocused ? focusedPaneOverlayBuilder?.call(context) : null;
+    final swapSource = _swapSourceIndex;
+    final isSwapSource = swapSource == index;
+    final isSwapMode = swapSource != null;
 
     final paneContent = tabId == null
         ? const ColoredBox(color: Colors.black)
@@ -266,8 +327,12 @@ class MultiPaneBrowserView extends ConsumerWidget {
             ),
           );
 
+    final focusBorderColor = Theme.of(context).colorScheme.primary;
+    final overlay =
+        isFocused ? widget.focusedPaneOverlayBuilder?.call(context) : null;
+
     void requestFocusForPane() {
-      final onFocusPane = this.onFocusPane;
+      final onFocusPane = widget.onFocusPane;
       if (onFocusPane != null) {
         onFocusPane(index);
       } else {
@@ -278,33 +343,391 @@ class MultiPaneBrowserView extends ConsumerWidget {
     return Semantics(
       label: '${state.mode.semanticLabel}, pane ${index + 1}',
       focused: isFocused,
-      child: Listener(
+      child: _PaneWrapper(
+        paneIndex: index,
+        isFocused: isFocused,
+        isSwapSource: isSwapSource,
+        isSwapMode: isSwapMode,
+        focusBorderColor: focusBorderColor,
+        swapGlowAnim: _swapGlowAnim,
+        onFocusRequest: requestFocusForPane,
+        onLongPressActivated: _activateSwapMode,
+        onSwapRequest: _performSwap,
+        onCancelSwap: _cancelSwapMode,
+        overlay: overlay,
+        child: paneContent,
+      ),
+    );
+  }
+}
+
+// ── Pane Wrapper ─────────────────────────────────────────────────────────────
+
+/// Wraps a single pane providing:
+///  • Normal focus glow (primary colour, static border).
+///  • Long-press hold timer with a fingerprint-style progress ring overlay.
+///  • Activated swap-source glow (amber, pulsing – distinguishable from focus).
+///  • Drop-target subtle amber border when swap mode is active on another pane.
+class _PaneWrapper extends StatefulWidget {
+  final int paneIndex;
+  final bool isFocused;
+  final bool isSwapSource;
+  final bool isSwapMode;
+  final Color focusBorderColor;
+  final Animation<double> swapGlowAnim;
+  final VoidCallback onFocusRequest;
+  final ValueChanged<int> onLongPressActivated;
+  final ValueChanged<int> onSwapRequest;
+  final VoidCallback onCancelSwap;
+  final Widget? overlay;
+  final Widget child;
+
+  const _PaneWrapper({
+    required this.paneIndex,
+    required this.isFocused,
+    required this.isSwapSource,
+    required this.isSwapMode,
+    required this.focusBorderColor,
+    required this.swapGlowAnim,
+    required this.onFocusRequest,
+    required this.onLongPressActivated,
+    required this.onSwapRequest,
+    required this.onCancelSwap,
+    required this.child,
+    this.overlay,
+  });
+
+  @override
+  State<_PaneWrapper> createState() => _PaneWrapperState();
+}
+
+class _PaneWrapperState extends State<_PaneWrapper>
+    with SingleTickerProviderStateMixin {
+  // Duration a finger must be held before swap mode activates.
+  static const _holdDuration = Duration(milliseconds: 650);
+
+  late final AnimationController _holdProgressController;
+  bool _isHolding = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _holdProgressController = AnimationController(
+      vsync: this,
+      duration: _holdDuration,
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed && _isHolding) {
+          widget.onLongPressActivated(widget.paneIndex);
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _holdProgressController.dispose();
+    super.dispose();
+  }
+
+  void _startHold() {
+    if (widget.isSwapMode) return; // already in swap mode
+    setState(() => _isHolding = true);
+    _holdProgressController
+      ..reset()
+      ..forward();
+  }
+
+  void _endHold() {
+    if (!_isHolding) return;
+    setState(() => _isHolding = false);
+    if (_holdProgressController.status != AnimationStatus.completed) {
+      _holdProgressController.stop();
+      _holdProgressController.reset();
+    }
+  }
+
+  void _handleTap() {
+    if (widget.isSwapMode && !widget.isSwapSource) {
+      widget.onSwapRequest(widget.paneIndex);
+    } else if (widget.isSwapSource) {
+      widget.onCancelSwap();
+    } else {
+      widget.onFocusRequest();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final swapColor = theme.colorScheme.tertiary.withValues(alpha: 0.9);
+
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) {
+        widget.onFocusRequest();
+        _startHold();
+      },
+      onPointerUp: (_) => _endHold(),
+      onPointerCancel: (_) => _endHold(),
+      child: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onPointerDown: (_) => requestFocusForPane(),
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: requestFocusForPane,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isFocused ? focusBorderColor : Colors.transparent,
+        onTap: _handleTap,
+        child: AnimatedBuilder(
+          animation:
+              widget.isSwapSource ? widget.swapGlowAnim : _holdProgressController,
+          builder: (context, child) {
+            // ── Border color and width ────────────────────────────────────
+            Color borderColor;
+            double borderWidth;
+
+            if (widget.isSwapSource) {
+              // Pulsing amber glow on the selected source pane.
+              final pulse = widget.swapGlowAnim.value;
+              borderWidth = 2.5 + pulse * 2.0;
+              borderColor = swapColor.withValues(alpha: 0.6 + pulse * 0.4);
+            } else if (widget.isSwapMode) {
+              // Subtle amber outline on potential drop targets.
+              borderWidth = 1.0;
+              borderColor = swapColor.withValues(alpha: 0.35);
+            } else if (widget.isFocused) {
+              // Standard focus glow (primary colour, static).
+              borderWidth = 1.0;
+              borderColor = widget.focusBorderColor;
+            } else {
+              borderWidth = 0;
+              borderColor = Colors.transparent;
+            }
+
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: borderColor,
+                  width: borderWidth,
+                ),
               ),
-            ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                paneContent,
-                if (overlay != null) Positioned.fill(child: overlay),
-              ],
-            ),
+              child: child,
+            );
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              widget.child,
+              if (widget.overlay != null)
+                Positioned.fill(child: widget.overlay!),
+              // ── Hold-progress ring overlay ───────────────────────────
+              if (_isHolding)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: _holdProgressController,
+                      builder: (context, _) {
+                        return _HoldProgressOverlay(
+                          progress: _holdProgressController.value,
+                          color: swapColor,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              // ── Swap-mode source indicator ───────────────────────────
+              if (widget.isSwapSource)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: widget.swapGlowAnim,
+                      builder: (context, _) {
+                        return Opacity(
+                          opacity: 0.6 + widget.swapGlowAnim.value * 0.4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: swapColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'Tap another pane to swap',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
     );
   }
 }
+
+/// Draws a semi-transparent radial progress ring centred on the pane, giving
+/// the user visual feedback that a long-press swap is about to activate —
+/// similar to a fingerprint unlock timer.
+class _HoldProgressOverlay extends StatelessWidget {
+  final double progress;
+  final Color color;
+
+  const _HoldProgressOverlay({required this.progress, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SizedBox(
+        width: 56,
+        height: 56,
+        child: Stack(
+          fit: StackFit.expand,
+          alignment: Alignment.center,
+          children: [
+            // Background circle
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withValues(alpha: 0.35),
+              ),
+            ),
+            // Circular progress
+            CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 3.5,
+              color: color,
+              backgroundColor: color.withValues(alpha: 0.25),
+            ),
+            // Centre icon
+            Icon(Icons.swap_horiz_rounded, color: color, size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Corner Diagonal Drag Handle ───────────────────────────────────────────────
+
+/// A small draggable diamond/circle handle placed at the intersection of the
+/// primary H and V splits in the 4-pane layout.  Dragging it diagonally
+/// updates both splits simultaneously.
+class _CornerDragHandle extends StatefulWidget {
+  final double splitH;
+  final double splitV;
+  final double totalWidth;
+  final double totalHeight;
+  final void Function(double dx, double dy) onDrag;
+
+  const _CornerDragHandle({
+    required this.splitH,
+    required this.splitV,
+    required this.totalWidth,
+    required this.totalHeight,
+    required this.onDrag,
+  });
+
+  @override
+  State<_CornerDragHandle> createState() => _CornerDragHandleState();
+}
+
+class _CornerDragHandleState extends State<_CornerDragHandle>
+    with SingleTickerProviderStateMixin {
+  bool _hovering = false;
+  bool _dragging = false;
+  late final AnimationController _idleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _idleAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _idleAnim.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+
+    // Pixel position of the intersection
+    final cx = widget.splitH * widget.totalWidth;
+    final cy = widget.splitV * widget.totalHeight;
+
+    const handleRadius = 14.0;
+    const hitRadius = 22.0;
+
+    return Positioned(
+      left: cx - hitRadius,
+      top: cy - hitRadius,
+      width: hitRadius * 2,
+      height: hitRadius * 2,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.move,
+        onEnter: (_) => setState(() => _hovering = true),
+        onExit: (_) => setState(() => _hovering = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanStart: (_) => setState(() => _dragging = true),
+          onPanUpdate: (d) =>
+              widget.onDrag(d.delta.dx, d.delta.dy),
+          onPanEnd: (_) => setState(() => _dragging = false),
+          child: AnimatedBuilder(
+            animation: _idleAnim,
+            builder: (context, _) {
+              final glowAlpha = _dragging || _hovering
+                  ? 0.85
+                  : 0.40 + _idleAnim.value * 0.30;
+
+              return Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width:
+                      (_dragging || _hovering) ? handleRadius * 2 : handleRadius * 1.5,
+                  height:
+                      (_dragging || _hovering) ? handleRadius * 2 : handleRadius * 1.5,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: accent.withValues(alpha: glowAlpha),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withValues(alpha: glowAlpha * 0.6),
+                        blurRadius:
+                            (_dragging || _hovering) ? 14 : 6 + _idleAnim.value * 6,
+                        spreadRadius: (_dragging || _hovering) ? 3 : 1,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.open_with_rounded,
+                    size: 13,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Split Container ───────────────────────────────────────────────────────────
 
 class _SplitContainer extends StatelessWidget {
   final Axis axis;
@@ -334,9 +757,7 @@ class _SplitContainer extends StatelessWidget {
         }
 
         const totalFlex = 10000;
-        final firstFlex = (fraction * totalFlex)
-            .clamp(1, totalFlex - 1)
-            .toInt();
+        final firstFlex = (fraction * totalFlex).clamp(1, totalFlex - 1).toInt();
         final secondFlex = totalFlex - firstFlex;
 
         final children = <Widget>[
@@ -365,12 +786,13 @@ class _SplitContainer extends StatelessWidget {
       _DraggableDivider(axis: axis, onDragDelta: (_) {}),
       Expanded(child: second),
     ];
-
     return axis == Axis.vertical
         ? Column(children: children)
         : Row(children: children);
   }
 }
+
+// ── Draggable Divider ─────────────────────────────────────────────────────────
 
 class _DraggableDivider extends StatefulWidget {
   final Axis axis;

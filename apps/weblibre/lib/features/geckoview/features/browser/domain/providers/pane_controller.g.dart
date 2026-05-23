@@ -41,7 +41,7 @@ final class PaneControllerProvider
   }
 }
 
-String _$paneControllerHash() => r'a7a2fc8426cbe929a521407b1deff8cfdc28ef99';
+String _$paneControllerHash() => r'10f635052ff77dcd9eb7182deb16648e48b54487';
 
 abstract class _$PaneController extends $Notifier<PaneState> {
   PaneState build();

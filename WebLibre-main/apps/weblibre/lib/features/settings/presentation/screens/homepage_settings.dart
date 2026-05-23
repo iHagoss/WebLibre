@@ -40,10 +40,7 @@ class HomepageSettingsScreen extends StatelessWidget {
             return ListView(
               controller: controller,
               padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              children: const [
-                _ShortcutsSection(),
-                _OpeningScreenSection(),
-              ],
+              children: const [_ShortcutsSection(), _OpeningScreenSection()],
             );
           },
         ),
@@ -87,9 +84,9 @@ class _JumpBackInTile extends HookConsumerWidget {
       secondary: const Icon(MdiIcons.history),
       value: enabled,
       onChanged: (value) async {
-        await ref.read(saveGeneralSettingsControllerProvider.notifier).save(
-          (s) => s.copyWith.homepageShowJumpBackIn(value),
-        );
+        await ref
+            .read(saveGeneralSettingsControllerProvider.notifier)
+            .save((s) => s.copyWith.homepageShowJumpBackIn(value));
       },
     );
   }
@@ -112,9 +109,9 @@ class _BookmarksTile extends HookConsumerWidget {
       secondary: const Icon(Icons.bookmark_outline),
       value: enabled,
       onChanged: (value) async {
-        await ref.read(saveGeneralSettingsControllerProvider.notifier).save(
-          (s) => s.copyWith.homepageShowBookmarks(value),
-        );
+        await ref
+            .read(saveGeneralSettingsControllerProvider.notifier)
+            .save((s) => s.copyWith.homepageShowBookmarks(value));
       },
     );
   }
@@ -137,9 +134,9 @@ class _RecentlyVisitedTile extends HookConsumerWidget {
       secondary: const Icon(MdiIcons.clockOutline),
       value: enabled,
       onChanged: (value) async {
-        await ref.read(saveGeneralSettingsControllerProvider.notifier).save(
-          (s) => s.copyWith.homepageShowRecentlyVisited(value),
-        );
+        await ref
+            .read(saveGeneralSettingsControllerProvider.notifier)
+            .save((s) => s.copyWith.homepageShowRecentlyVisited(value));
       },
     );
   }

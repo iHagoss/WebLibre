@@ -328,8 +328,9 @@ class _MultiPaneBrowserViewState extends ConsumerState<MultiPaneBrowserView>
           );
 
     final focusBorderColor = Theme.of(context).colorScheme.primary;
-    final overlay =
-        isFocused ? widget.focusedPaneOverlayBuilder?.call(context) : null;
+    final overlay = isFocused
+        ? widget.focusedPaneOverlayBuilder?.call(context)
+        : null;
 
     void requestFocusForPane() {
       final onFocusPane = widget.onFocusPane;
@@ -412,14 +413,13 @@ class _PaneWrapperState extends State<_PaneWrapper>
   @override
   void initState() {
     super.initState();
-    _holdProgressController = AnimationController(
-      vsync: this,
-      duration: _holdDuration,
-    )..addStatusListener((status) {
-        if (status == AnimationStatus.completed && _isHolding) {
-          widget.onLongPressActivated(widget.paneIndex);
-        }
-      });
+    _holdProgressController =
+        AnimationController(vsync: this, duration: _holdDuration)
+          ..addStatusListener((status) {
+            if (status == AnimationStatus.completed && _isHolding) {
+              widget.onLongPressActivated(widget.paneIndex);
+            }
+          });
   }
 
   @override
@@ -472,8 +472,9 @@ class _PaneWrapperState extends State<_PaneWrapper>
         behavior: HitTestBehavior.translucent,
         onTap: _handleTap,
         child: AnimatedBuilder(
-          animation:
-              widget.isSwapSource ? widget.swapGlowAnim : _holdProgressController,
+          animation: widget.isSwapSource
+              ? widget.swapGlowAnim
+              : _holdProgressController,
           builder: (context, child) {
             // ── Border color and width ────────────────────────────────────
             Color borderColor;
@@ -501,10 +502,7 @@ class _PaneWrapperState extends State<_PaneWrapper>
               duration: const Duration(milliseconds: 120),
               curve: Curves.easeOutCubic,
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: borderColor,
-                  width: borderWidth,
-                ),
+                border: Border.all(color: borderColor, width: borderWidth),
               ),
               child: child,
             );
@@ -683,8 +681,7 @@ class _CornerDragHandleState extends State<_CornerDragHandle>
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onPanStart: (_) => setState(() => _dragging = true),
-          onPanUpdate: (d) =>
-              widget.onDrag(d.delta.dx, d.delta.dy),
+          onPanUpdate: (d) => widget.onDrag(d.delta.dx, d.delta.dy),
           onPanEnd: (_) => setState(() => _dragging = false),
           child: AnimatedBuilder(
             animation: _idleAnim,
@@ -696,18 +693,21 @@ class _CornerDragHandleState extends State<_CornerDragHandle>
               return Center(
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
-                  width:
-                      (_dragging || _hovering) ? handleRadius * 2 : handleRadius * 1.5,
-                  height:
-                      (_dragging || _hovering) ? handleRadius * 2 : handleRadius * 1.5,
+                  width: (_dragging || _hovering)
+                      ? handleRadius * 2
+                      : handleRadius * 1.5,
+                  height: (_dragging || _hovering)
+                      ? handleRadius * 2
+                      : handleRadius * 1.5,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: accent.withValues(alpha: glowAlpha),
                     boxShadow: [
                       BoxShadow(
                         color: accent.withValues(alpha: glowAlpha * 0.6),
-                        blurRadius:
-                            (_dragging || _hovering) ? 14 : 6 + _idleAnim.value * 6,
+                        blurRadius: (_dragging || _hovering)
+                            ? 14
+                            : 6 + _idleAnim.value * 6,
                         spreadRadius: (_dragging || _hovering) ? 3 : 1,
                       ),
                     ],
@@ -757,7 +757,9 @@ class _SplitContainer extends StatelessWidget {
         }
 
         const totalFlex = 10000;
-        final firstFlex = (fraction * totalFlex).clamp(1, totalFlex - 1).toInt();
+        final firstFlex = (fraction * totalFlex)
+            .clamp(1, totalFlex - 1)
+            .toInt();
         final secondFlex = totalFlex - firstFlex;
 
         final children = <Widget>[

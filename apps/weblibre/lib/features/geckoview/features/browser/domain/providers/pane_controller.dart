@@ -223,8 +223,8 @@ class PaneController extends _$PaneController {
     final newFocus = state.focusedPaneIndex == a
         ? b
         : state.focusedPaneIndex == b
-            ? a
-            : state.focusedPaneIndex;
+        ? a
+        : state.focusedPaneIndex;
 
     state = state.copyWith(paneTabIds: updated, focusedPaneIndex: newFocus);
 

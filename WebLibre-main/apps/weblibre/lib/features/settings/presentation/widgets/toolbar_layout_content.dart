@@ -481,6 +481,7 @@ class _TabListShowFaviconsTile extends HookConsumerWidget {
       },
     );
   }
+}
 
 class _ToolbarHeightSection extends HookConsumerWidget {
   const _ToolbarHeightSection();
@@ -539,6 +540,4 @@ class _ToolbarHeightSection extends HookConsumerWidget {
       ),
     );
   }
-}
-
 }

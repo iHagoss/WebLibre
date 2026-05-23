@@ -17,6 +17,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_mozilla_components/flutter_mozilla_components.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -75,7 +77,7 @@ class _MultiPaneBrowserViewState extends ConsumerState<MultiPaneBrowserView>
 
   void _activateSwapMode(int index) {
     setState(() => _swapSourceIndex = index);
-    _swapGlowController.repeat(reverse: true);
+    unawaited(_swapGlowController.repeat(reverse: true));
   }
 
   void _cancelSwapMode() {
@@ -431,9 +433,8 @@ class _PaneWrapperState extends State<_PaneWrapper>
   void _startHold() {
     if (widget.isSwapMode) return; // already in swap mode
     setState(() => _isHolding = true);
-    _holdProgressController
-      ..reset()
-      ..forward();
+    _holdProgressController.reset();
+    unawaited(_holdProgressController.forward());
   }
 
   void _endHold() {
@@ -648,7 +649,8 @@ class _CornerDragHandleState extends State<_CornerDragHandle>
     _idleAnim = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
+    );
+    unawaited(_idleAnim.repeat(reverse: true));
   }
 
   @override

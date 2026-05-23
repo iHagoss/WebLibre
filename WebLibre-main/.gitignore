@@ -1,0 +1,20 @@
+# IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Mac
+.DS_Store
+
+# Flutter/Dart/Pub related
+.dart_tool/
+build/
+pubspec.lock
+CLAUDE.md
+AGENTS.md
+plans/
+.env
+.temp/
+certs/
+codenomad/

@@ -1,0 +1,99 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'engine_settings.dart';
+
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+
+@ProviderFor(EngineSettingsRepository)
+final engineSettingsRepositoryProvider = EngineSettingsRepositoryProvider._();
+
+final class EngineSettingsRepositoryProvider
+    extends $StreamNotifierProvider<EngineSettingsRepository, EngineSettings> {
+  EngineSettingsRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'engineSettingsRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$engineSettingsRepositoryHash();
+
+  @$internal
+  @override
+  EngineSettingsRepository create() => EngineSettingsRepository();
+}
+
+String _$engineSettingsRepositoryHash() =>
+    r'03cfe93b6d4ac8cdb0b33627f4baa75240bff745';
+
+abstract class _$EngineSettingsRepository
+    extends $StreamNotifier<EngineSettings> {
+  Stream<EngineSettings> build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<EngineSettings>, EngineSettings>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<EngineSettings>, EngineSettings>,
+              AsyncValue<EngineSettings>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}
+
+@ProviderFor(engineSettingsWithDefaults)
+final engineSettingsWithDefaultsProvider =
+    EngineSettingsWithDefaultsProvider._();
+
+final class EngineSettingsWithDefaultsProvider
+    extends $FunctionalProvider<EngineSettings, EngineSettings, EngineSettings>
+    with $Provider<EngineSettings> {
+  EngineSettingsWithDefaultsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'engineSettingsWithDefaultsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$engineSettingsWithDefaultsHash();
+
+  @$internal
+  @override
+  $ProviderElement<EngineSettings> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  EngineSettings create(Ref ref) {
+    return engineSettingsWithDefaults(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(EngineSettings value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<EngineSettings>(value),
+    );
+  }
+}
+
+String _$engineSettingsWithDefaultsHash() =>
+    r'd47fa79c0ad87a2357de58133585b4f6b097b068';

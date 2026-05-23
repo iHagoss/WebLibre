@@ -1,0 +1,8 @@
+# dependency_validator config for flutter_mozilla_components_example.
+# - integration_test is declared as a dev_dependency to enable future
+#   integration tests via the standard Flutter integration_test harness;
+#   no integration tests are imported yet, so the validator misreports it.
+# - lint is consumed via include: in analysis_options.yaml.
+ignore:
+  - integration_test
+  - lint

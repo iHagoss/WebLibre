@@ -1,0 +1,268 @@
+package eu.weblibre.flutter_mozilla_components.api
+
+import eu.weblibre.flutter_mozilla_components.GlobalComponents
+import eu.weblibre.flutter_mozilla_components.pigeons.GeckoHistoryApi
+import eu.weblibre.flutter_mozilla_components.pigeons.FrecencyThresholdOption
+import eu.weblibre.flutter_mozilla_components.pigeons.HistoryHighlight
+import eu.weblibre.flutter_mozilla_components.pigeons.HistoryHighlightWeights
+import eu.weblibre.flutter_mozilla_components.pigeons.TopFrecentSiteInfo
+import eu.weblibre.flutter_mozilla_components.pigeons.VisitInfo
+import eu.weblibre.flutter_mozilla_components.pigeons.VisitType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import mozilla.components.browser.state.state.content.DownloadState
+import kotlin.time.Duration.Companion.milliseconds
+
+class GeckoHistoryApiImpl() : GeckoHistoryApi {
+    companion object {
+        private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    }
+
+    private val components by lazy {
+        requireNotNull(GlobalComponents.components) { "Components not initialized" }
+    }
+
+    private fun Map<String, DownloadState>.toVisitInfoList(
+        startMillis: Long,
+        endMillis: Long,
+    ): List<VisitInfo> =
+        values
+            .filter {
+                isDisplayableItem(it.status) &&
+                        it.createdTime >= startMillis && it.createdTime <= endMillis
+            }
+            .distinctBy { Pair(it.fileName, it.status) }
+            .sortedByDescending { it.createdTime } // sort from newest to oldest
+            .map { it.toVisitInfo() }
+
+    private fun isDisplayableItem(status: DownloadState.Status) =
+        status != DownloadState.Status.CANCELLED
+
+    private fun DownloadState.toVisitInfo() =
+        VisitInfo(
+            url = url,
+            visitType = VisitType.DOWNLOAD,
+            visitTime = createdTime,
+            title = filePath,
+            previewImageUrl = contentType,
+            isRemote = false,
+            contentId = id
+        )
+
+    override fun getDetailedVisits(
+        startMillis: Long,
+        endMillis: Long,
+        excludeTypes: List<VisitType>,
+        callback: (Result<List<VisitInfo>>) -> Unit
+    ) {
+        coroutineScope.launch {
+            withContext(Dispatchers.Main) {
+                var visits = components.core.historyStorage.getDetailedVisits(
+                    startMillis,
+                    endMillis,
+                    excludeTypes.map {
+                        when (it) {
+                            VisitType.LINK -> mozilla.components.concept.storage.VisitType.LINK
+                            VisitType.TYPED -> mozilla.components.concept.storage.VisitType.TYPED
+                            VisitType.BOOKMARK -> mozilla.components.concept.storage.VisitType.BOOKMARK
+                            VisitType.EMBED -> mozilla.components.concept.storage.VisitType.EMBED
+                            VisitType.REDIRECT_PERMANENT -> mozilla.components.concept.storage.VisitType.REDIRECT_PERMANENT
+                            VisitType.REDIRECT_TEMPORARY -> mozilla.components.concept.storage.VisitType.REDIRECT_TEMPORARY
+                            VisitType.DOWNLOAD -> mozilla.components.concept.storage.VisitType.DOWNLOAD
+                            VisitType.FRAMED_LINK -> mozilla.components.concept.storage.VisitType.FRAMED_LINK
+                            VisitType.RELOAD -> mozilla.components.concept.storage.VisitType.RELOAD
+                        }
+                    }).map {
+                    VisitInfo(
+                        url = it.url,
+                        title = it.title,
+                        visitTime = it.visitTime,
+                        visitType = when (it.visitType) {
+                            mozilla.components.concept.storage.VisitType.LINK -> VisitType.LINK
+                            mozilla.components.concept.storage.VisitType.TYPED -> VisitType.TYPED
+                            mozilla.components.concept.storage.VisitType.BOOKMARK -> VisitType.BOOKMARK
+                            mozilla.components.concept.storage.VisitType.EMBED -> VisitType.EMBED
+                            mozilla.components.concept.storage.VisitType.REDIRECT_PERMANENT -> VisitType.REDIRECT_PERMANENT
+                            mozilla.components.concept.storage.VisitType.REDIRECT_TEMPORARY -> VisitType.REDIRECT_TEMPORARY
+                            mozilla.components.concept.storage.VisitType.DOWNLOAD -> VisitType.DOWNLOAD
+                            mozilla.components.concept.storage.VisitType.FRAMED_LINK -> VisitType.FRAMED_LINK
+                            mozilla.components.concept.storage.VisitType.RELOAD -> VisitType.RELOAD
+                        },
+                        previewImageUrl = it.previewImageUrl,
+                        isRemote = it.isRemote
+                    )
+                }
+
+                if (!excludeTypes.contains(VisitType.DOWNLOAD)) {
+                    visits = visits + components.core.store.state.downloads.toVisitInfoList(
+                        startMillis,
+                        endMillis
+                    )
+                }
+
+                callback(
+                    Result.success(
+                        visits
+                    )
+                )
+            }
+        }
+    }
+
+    override fun getVisitsPaginated(
+        offset: Long,
+        count: Long,
+        excludeTypes: List<VisitType>,
+        callback: (Result<List<VisitInfo>>) -> Unit
+    ) {
+        coroutineScope.launch {
+            withContext(Dispatchers.Main) {
+                var visits = components.core.historyStorage.getVisitsPaginated(
+                    offset,
+                    count,
+                    excludeTypes.map {
+                        when (it) {
+                            VisitType.LINK -> mozilla.components.concept.storage.VisitType.LINK
+                            VisitType.TYPED -> mozilla.components.concept.storage.VisitType.TYPED
+                            VisitType.BOOKMARK -> mozilla.components.concept.storage.VisitType.BOOKMARK
+                            VisitType.EMBED -> mozilla.components.concept.storage.VisitType.EMBED
+                            VisitType.REDIRECT_PERMANENT -> mozilla.components.concept.storage.VisitType.REDIRECT_PERMANENT
+                            VisitType.REDIRECT_TEMPORARY -> mozilla.components.concept.storage.VisitType.REDIRECT_TEMPORARY
+                            VisitType.DOWNLOAD -> mozilla.components.concept.storage.VisitType.DOWNLOAD
+                            VisitType.FRAMED_LINK -> mozilla.components.concept.storage.VisitType.FRAMED_LINK
+                            VisitType.RELOAD -> mozilla.components.concept.storage.VisitType.RELOAD
+                        }
+                    }).map {
+                    VisitInfo(
+                        url = it.url,
+                        title = it.title,
+                        visitTime = it.visitTime,
+                        visitType = when (it.visitType) {
+                            mozilla.components.concept.storage.VisitType.LINK -> VisitType.LINK
+                            mozilla.components.concept.storage.VisitType.TYPED -> VisitType.TYPED
+                            mozilla.components.concept.storage.VisitType.BOOKMARK -> VisitType.BOOKMARK
+                            mozilla.components.concept.storage.VisitType.EMBED -> VisitType.EMBED
+                            mozilla.components.concept.storage.VisitType.REDIRECT_PERMANENT -> VisitType.REDIRECT_PERMANENT
+                            mozilla.components.concept.storage.VisitType.REDIRECT_TEMPORARY -> VisitType.REDIRECT_TEMPORARY
+                            mozilla.components.concept.storage.VisitType.DOWNLOAD -> VisitType.DOWNLOAD
+                            mozilla.components.concept.storage.VisitType.FRAMED_LINK -> VisitType.FRAMED_LINK
+                            mozilla.components.concept.storage.VisitType.RELOAD -> VisitType.RELOAD
+                        },
+                        previewImageUrl = it.previewImageUrl,
+                        isRemote = it.isRemote
+                    )
+                }
+
+                if (!excludeTypes.contains(VisitType.DOWNLOAD)) {
+                    callback(Result.failure(Throwable("Downloads not supported yet")))
+//                    visits = visits + components.core.store.state.downloads.toVisitInfoList(startMillis, endMillis)
+                }
+
+                callback(
+                    Result.success(
+                        visits
+                    )
+                )
+            }
+        }
+    }
+
+    override fun deleteVisit(
+        url: String,
+        timestamp: Long,
+        callback: (Result<Unit>) -> Unit
+    ) {
+        coroutineScope.launch {
+            withContext(Dispatchers.Main) {
+                components.core.historyStorage.deleteVisit(url, timestamp);
+
+                callback(Result.success(Unit))
+            }
+        }
+    }
+
+    override fun deleteDownload(
+        id: String,
+        callback: (Result<Unit>) -> Unit
+    ) {
+        coroutineScope.launch {
+            withContext(Dispatchers.Main) {
+                components.useCases.downloadsUseCases.removeDownload(id)
+
+                callback(Result.success(Unit))
+            }
+        }
+    }
+
+    override fun deleteVisitsBetween(
+        startMillis: Long,
+        endMillis: Long,
+        callback: (Result<Unit>) -> Unit
+    ) {
+        coroutineScope.launch {
+            withContext(Dispatchers.Main) {
+                components.core.historyStorage.deleteVisitsBetween(startMillis, endMillis);
+
+                callback(Result.success(Unit))
+            }
+        }
+    }
+
+    override fun getHistoryHighlights(
+        weights: HistoryHighlightWeights,
+        limit: Long,
+        callback: (Result<List<HistoryHighlight>>) -> Unit
+    ) {
+        coroutineScope.launch {
+            withContext(Dispatchers.Main) {
+                val conceptWeights = mozilla.components.concept.storage.HistoryHighlightWeights(
+                    viewTime = weights.viewTime,
+                    frequency = weights.frequency,
+                )
+                val highlights = components.core.historyStorage.getHistoryHighlights(
+                    conceptWeights,
+                    limit.toInt(),
+                ).map {
+                    HistoryHighlight(
+                        score = it.score,
+                        placeId = it.placeId.toLong(),
+                        url = it.url,
+                        title = it.title,
+                        previewImageUrl = it.previewImageUrl,
+                    )
+                }
+                callback(Result.success(highlights))
+            }
+        }
+    }
+
+    override fun getTopFrecentSites(
+        limit: Long,
+        frecencyThreshold: FrecencyThresholdOption,
+        callback: (Result<List<TopFrecentSiteInfo>>) -> Unit
+    ) {
+        coroutineScope.launch {
+            withContext(Dispatchers.Main) {
+                val conceptThreshold = when (frecencyThreshold) {
+                    FrecencyThresholdOption.NONE ->
+                        mozilla.components.concept.storage.FrecencyThresholdOption.NONE
+                    FrecencyThresholdOption.SKIP_ONE_TIME_PAGES ->
+                        mozilla.components.concept.storage.FrecencyThresholdOption.SKIP_ONE_TIME_PAGES
+                }
+                val sites = components.core.historyStorage.getTopFrecentSites(
+                    limit.toInt(),
+                    conceptThreshold,
+                ).map {
+                    TopFrecentSiteInfo(
+                        url = it.url,
+                        title = it.title,
+                    )
+                }
+                callback(Result.success(sites))
+            }
+        }
+    }
+}

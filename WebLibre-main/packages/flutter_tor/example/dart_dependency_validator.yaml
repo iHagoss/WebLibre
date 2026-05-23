@@ -1,0 +1,10 @@
+# dependency_validator config for flutter_tor_example.
+# - http is reserved for the example's HTTP-over-Tor connectivity demo; it is
+#   listed in pubspec.yaml even when no main.dart import is active right now.
+# - integration_test is reserved for the standard Flutter integration_test
+#   harness in this example app.
+# - lint is consumed via include: in analysis_options.yaml.
+ignore:
+  - http
+  - integration_test
+  - lint

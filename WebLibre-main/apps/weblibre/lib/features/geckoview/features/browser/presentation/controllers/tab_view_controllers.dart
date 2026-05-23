@@ -1,0 +1,147 @@
+/*
+ * Copyright (c) 2024-2026 Fabian Freund.
+ *
+ * This file is part of WebLibre
+ * (see https://weblibre.eu).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_material_design_icons/flutter_material_design_icons.dart';
+import 'package:riverpod/experimental/persist.dart';
+import 'package:riverpod_annotation/experimental/json_persist.dart';
+import 'package:riverpod_annotation/experimental/persist.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:weblibre/features/geckoview/features/browser/domain/entities/tab_view_filter_options.dart';
+import 'package:weblibre/features/user/data/providers.dart';
+
+part 'tab_view_controllers.g.dart';
+
+enum TabsViewMode {
+  list(MdiIcons.folderTable, 'List'),
+  grid(MdiIcons.table, 'Grid'),
+  tree(MdiIcons.familyTree, 'Tree');
+
+  final IconData icon;
+  final String label;
+
+  const TabsViewMode(this.icon, this.label);
+}
+
+@Riverpod(keepAlive: true)
+class TabsViewModeController extends _$TabsViewModeController {
+  void set(TabsViewMode mode) {
+    if (mode != state) {
+      state = mode;
+    }
+  }
+
+  @override
+  TabsViewMode build() {
+    persist(
+      ref.watch(riverpodDatabaseStorageProvider),
+      key: 'TabsViewMode',
+      encode: (state) => jsonEncode([state.name]),
+      decode: (encoded) {
+        final name = (jsonDecode(encoded) as List<dynamic>).first as String;
+        return TabsViewMode.values.firstWhere((e) => e.name == name);
+      },
+    );
+
+    return stateOrNull ?? TabsViewMode.list;
+  }
+}
+
+@Riverpod(keepAlive: true)
+@JsonPersist()
+class TabViewFilterController extends _$TabViewFilterController {
+  void setTabTypeFilter(TabTypeFilter filter) {
+    state = state.copyWith.tabTypeFilter(filter);
+  }
+
+  void setSortType(TabSortType sort) {
+    state = state.copyWith.sortType(sort);
+  }
+
+  void setSortPinnedFirst(bool value) {
+    state = state.copyWith(sortPinnedFirst: value);
+  }
+
+  void setShowHierarchicalTabs(bool value) {
+    state = state.copyWith(showHierarchicalTabs: value);
+  }
+
+  void setDateRange(DateTimeRange<DateTime>? range) {
+    // ignore: avoid_redundant_argument_values
+    state = state.copyWith(dateRange: range, quickInterval: null);
+  }
+
+  void setQuickInterval(TabQuickInterval? interval) {
+    // ignore: avoid_redundant_argument_values
+    state = state.copyWith(quickInterval: interval, dateRange: null);
+  }
+
+  void reset() {
+    state = TabViewFilterOptions.withDefaults();
+  }
+
+  @override
+  TabViewFilterOptions build() {
+    persist(
+      ref.watch(riverpodDatabaseStorageProvider),
+      key: 'TabViewFilterOptions',
+    );
+
+    return stateOrNull ?? TabViewFilterOptions.withDefaults();
+  }
+}
+
+/// Tracks which parent groups are *collapsed* in the grouped list/grid views.
+///
+/// Stored as the collapsed set so groups default to expanded for fresh
+/// sessions. In-memory only — group expansion is treated as ephemeral UI
+/// state, not a persisted setting.
+@Riverpod(keepAlive: true)
+class CollapsedGroups extends _$CollapsedGroups {
+  @override
+  Set<String> build() => const {};
+
+  void toggle(String parentId) {
+    state = state.contains(parentId)
+        ? (state.toSet()..remove(parentId))
+        : (state.toSet()..add(parentId));
+  }
+
+  void expandAll() => state = const {};
+}
+
+@Riverpod()
+class TabsReorderableController extends _$TabsReorderableController {
+  void toggle() {
+    state = !state;
+  }
+
+  void hide() {
+    if (state) {
+      state = false;
+    }
+  }
+
+  @override
+  bool build() {
+    return false;
+  }
+}

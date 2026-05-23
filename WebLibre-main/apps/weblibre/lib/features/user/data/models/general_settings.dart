@@ -1,0 +1,458 @@
+/*
+ * Copyright (c) 2024-2026 Fabian Freund.
+ *
+ * This file is part of WebLibre
+ * (see https://weblibre.eu).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+import 'package:copy_with_extension/copy_with_extension.dart';
+import 'package:fast_equatable/fast_equatable.dart';
+import 'package:flutter/material.dart';
+import 'package:json_annotation/json_annotation.dart';
+import 'package:weblibre/core/routing/routes.dart';
+import 'package:weblibre/features/bangs/data/models/bang_group.dart';
+import 'package:weblibre/features/bangs/data/models/bang_key.dart';
+import 'package:weblibre/features/intent_gatekeeper/domain/entities/intent_source_policy.dart';
+import 'package:weblibre/features/search/domain/entities/abstract/i_search_suggestion_provider.dart';
+
+part 'general_settings.g.dart';
+
+const _fallbackSearchProvider = BangKey(
+  group: BangGroup.general,
+  trigger: 'wikipedia',
+);
+const _fallbackAutocompleteProvider = SearchSuggestionProviders.none;
+
+const defaultUiScaleFactor = 1.0;
+const minUiScaleFactor = 0.5;
+const maxUiScaleFactor = 1.5;
+const uiScaleFactorStep = 0.05;
+
+enum TabBarSwipeAction { switchLastOpened, navigateOrderedTabs }
+
+enum QuickTabSwitcherMode { lastUsedTabs, containerTabs }
+
+enum TabIntentOpenSetting { regular, private, isolated, ask }
+
+enum TabDirection { newestFirst, oldestFirst }
+
+enum TabBarPosition { top, bottom }
+
+enum TabBarLayout { withTitle, compact }
+
+/// Which screen to show when the browser opens / a new tab is started.
+enum HomepageOpeningScreen { homepage, lastTab, homepageAfterFourHours }
+
+/// Scale applied to the contextual toolbar height.
+/// compact ≈ 75 %, normal = 100 %, large ≈ 125 %.
+enum ToolbarHeightSize { compact, normal, large }
+
+enum DeleteBrowsingDataType {
+  tabs('Open tabs'),
+  history('Browsing history'),
+  cookies('Cookies and site data', 'You’ll be logged out of most sites'),
+  cache('Cached images and files', 'Frees up storage space'),
+  permissions('Site permissions'),
+  downloads('Downloads');
+
+  final String title;
+  final String? description;
+
+  const DeleteBrowsingDataType(this.title, [this.description]);
+}
+
+@CopyWith()
+@JsonSerializable(includeIfNull: true, constructor: 'withDefaults')
+class GeneralSettings with FastEquatable {
+  final ThemeMode themeMode;
+  final double uiScaleFactor;
+  final bool disableAnimations;
+  final bool showModalBarrier;
+  final bool enableReadability;
+  final bool enforceReadability;
+  final Set<DeleteBrowsingDataType>? deleteBrowsingDataOnQuit;
+  final bool screenshotProtectionEnabled;
+  @BangKeyConverter()
+  final BangKey? defaultSearchProvider;
+  final SearchSuggestionProviders defaultSearchSuggestionsProvider;
+  final bool createChildTabsOption;
+  final bool enableLocalAiFeatures;
+  final bool showContainerUi;
+  final bool showIsolatedTabUi;
+  @JsonKey(name: 'defaultCreateTabType')
+  final TabType storedDefaultCreateTabType;
+  final TabDirection tabListDirection;
+  final TabDirection tabBarDirection;
+  final TabIntentOpenSetting tabIntentOpenSetting;
+  final bool autoHideTabBar;
+  final TabBarSwipeAction tabBarSwipeAction;
+  final Duration historyAutoCleanInterval;
+  final bool tabViewBottomSheet;
+  final bool tabBarShowContextualBar;
+  final bool tabBarShowQuickTabSwitcherBar;
+  final TabBarPosition tabBarPosition;
+  final TabBarLayout tabBarLayout;
+  final QuickTabSwitcherMode quickTabSwitcherMode;
+  final bool pullToRefreshEnabled;
+  final bool useExternalDownloadManager;
+  final bool doubleBackCloseTab;
+  final Duration unassignedTabsAutoCleanInterval;
+  final int maxSearchHistoryEntries;
+  final bool allowClipboardAccess;
+  final bool tabListShowFavicons;
+  final bool quickTabSwitcherShowTitles;
+  final bool quickTabSwitcherShowHistorySuggestions;
+  final String syncServerOverride;
+  final String syncTokenServerOverride;
+  final bool urlCleanerEnabled;
+  final bool urlCleanerAutoApply;
+  final bool urlCleanerAllowReferralMarketing;
+  final String urlCleanerCatalogUrl;
+  final String urlCleanerHashUrl;
+  final bool urlCleanerAutoUpdate;
+  final int? urlCleanerLastCheckEpochMs;
+  final bool urlCleanerLastUpdateWasAuto;
+  final TabType smallWebTabType;
+  final bool tabBarLongPressUrlCopy;
+  final bool unshortenerEnabled;
+  final String unshortenerToken;
+  final bool allowNonManifestPwaInstall;
+  final bool blockExternalAppsEnabled;
+  final Map<String, IntentSourcePolicy> externalAppIntentPolicies;
+
+  // ── Homepage settings ─────────────────────────────────────────────────────
+  final HomepageOpeningScreen homepageOpeningScreen;
+  final bool homepageShowJumpBackIn;
+  final bool homepageShowBookmarks;
+  final bool homepageShowRecentlyVisited;
+
+  // ── Toolbar height ─────────────────────────────────────────────────────────
+  final ToolbarHeightSize toolbarHeightSize;
+
+  GeneralSettings({
+    required this.themeMode,
+    required this.uiScaleFactor,
+    required this.disableAnimations,
+    required this.showModalBarrier,
+    required this.enableReadability,
+    required this.enforceReadability,
+    required this.deleteBrowsingDataOnQuit,
+    required this.screenshotProtectionEnabled,
+    required this.defaultSearchProvider,
+    required this.defaultSearchSuggestionsProvider,
+    required this.createChildTabsOption,
+    required this.enableLocalAiFeatures,
+    required this.showContainerUi,
+    required this.showIsolatedTabUi,
+    required this.storedDefaultCreateTabType,
+    required this.tabListDirection,
+    required this.tabBarDirection,
+    required this.tabIntentOpenSetting,
+    required this.autoHideTabBar,
+    required this.tabBarSwipeAction,
+    required this.historyAutoCleanInterval,
+    required this.tabViewBottomSheet,
+    required this.tabBarShowContextualBar,
+    required this.tabBarShowQuickTabSwitcherBar,
+    required this.tabBarPosition,
+    required this.tabBarLayout,
+    required this.quickTabSwitcherMode,
+    required this.pullToRefreshEnabled,
+    required this.useExternalDownloadManager,
+    required this.doubleBackCloseTab,
+    required this.unassignedTabsAutoCleanInterval,
+    required this.maxSearchHistoryEntries,
+    required this.allowClipboardAccess,
+    required this.tabListShowFavicons,
+    required this.quickTabSwitcherShowTitles,
+    required this.quickTabSwitcherShowHistorySuggestions,
+    required this.syncServerOverride,
+    required this.syncTokenServerOverride,
+    required this.urlCleanerEnabled,
+    required this.urlCleanerAutoApply,
+    required this.urlCleanerAllowReferralMarketing,
+    required this.urlCleanerCatalogUrl,
+    required this.urlCleanerHashUrl,
+    required this.urlCleanerAutoUpdate,
+    required this.urlCleanerLastCheckEpochMs,
+    required this.urlCleanerLastUpdateWasAuto,
+    required this.smallWebTabType,
+    required this.tabBarLongPressUrlCopy,
+    required this.unshortenerEnabled,
+    required this.unshortenerToken,
+    required this.allowNonManifestPwaInstall,
+    required this.blockExternalAppsEnabled,
+    required this.externalAppIntentPolicies,
+    required this.homepageOpeningScreen,
+    required this.homepageShowJumpBackIn,
+    required this.homepageShowBookmarks,
+    required this.homepageShowRecentlyVisited,
+    required this.toolbarHeightSize,
+  });
+
+  GeneralSettings.withDefaults({
+    ThemeMode? themeMode,
+    double? uiScaleFactor,
+    bool? disableAnimations,
+    bool? showModalBarrier,
+    bool? enableReadability,
+    bool? enforceReadability,
+    this.deleteBrowsingDataOnQuit,
+    bool? screenshotProtectionEnabled,
+    BangKey? defaultSearchProvider,
+    SearchSuggestionProviders? defaultSearchSuggestionsProvider,
+    bool? createChildTabsOption,
+    bool? enableLocalAiFeatures,
+    bool? showContainerUi,
+    bool? showIsolatedTabUi,
+    TabType? storedDefaultCreateTabType,
+    TabDirection? tabListDirection,
+    TabDirection? tabBarDirection,
+    TabIntentOpenSetting? tabIntentOpenSetting,
+    bool? autoHideTabBar,
+    TabBarSwipeAction? tabBarSwipeAction,
+    Duration? historyAutoCleanInterval,
+    bool? tabViewBottomSheet,
+    bool? tabBarShowContextualBar,
+    bool? tabBarShowQuickTabSwitcherBar,
+    TabBarPosition? tabBarPosition,
+    TabBarLayout? tabBarLayout,
+    QuickTabSwitcherMode? quickTabSwitcherMode,
+    bool? pullToRefreshEnabled,
+    bool? useExternalDownloadManager,
+    bool? doubleBackCloseTab,
+    Duration? unassignedTabsAutoCleanInterval,
+    int? maxSearchHistoryEntries,
+    bool? allowClipboardAccess,
+    bool? tabListShowFavicons,
+    bool? quickTabSwitcherShowTitles,
+    bool? quickTabSwitcherShowHistorySuggestions,
+    String? syncServerOverride,
+    String? syncTokenServerOverride,
+    bool? urlCleanerEnabled,
+    bool? urlCleanerAutoApply,
+    bool? urlCleanerAllowReferralMarketing,
+    String? urlCleanerCatalogUrl,
+    String? urlCleanerHashUrl,
+    bool? urlCleanerAutoUpdate,
+    this.urlCleanerLastCheckEpochMs,
+    bool? urlCleanerLastUpdateWasAuto,
+    TabType? smallWebTabType,
+    bool? tabBarLongPressUrlCopy,
+    bool? unshortenerEnabled,
+    String? unshortenerToken,
+    bool? allowNonManifestPwaInstall,
+    bool? blockExternalAppsEnabled,
+    Map<String, IntentSourcePolicy>? externalAppIntentPolicies,
+    HomepageOpeningScreen? homepageOpeningScreen,
+    bool? homepageShowJumpBackIn,
+    bool? homepageShowBookmarks,
+    bool? homepageShowRecentlyVisited,
+    ToolbarHeightSize? toolbarHeightSize,
+  }) : themeMode = themeMode ?? ThemeMode.dark,
+       uiScaleFactor = uiScaleFactor ?? defaultUiScaleFactor,
+       disableAnimations = disableAnimations ?? false,
+       showModalBarrier = showModalBarrier ?? true,
+       enableReadability = enableReadability ?? true,
+       enforceReadability = enforceReadability ?? false,
+       screenshotProtectionEnabled = screenshotProtectionEnabled ?? false,
+       defaultSearchProvider = defaultSearchProvider ?? _fallbackSearchProvider,
+       defaultSearchSuggestionsProvider =
+           defaultSearchSuggestionsProvider ?? _fallbackAutocompleteProvider,
+       createChildTabsOption = createChildTabsOption ?? false,
+       enableLocalAiFeatures = enableLocalAiFeatures ?? true,
+       showContainerUi = showContainerUi ?? true,
+       showIsolatedTabUi = showIsolatedTabUi ?? true,
+       storedDefaultCreateTabType =
+           storedDefaultCreateTabType ?? TabType.regular,
+       tabListDirection = tabListDirection ?? TabDirection.newestFirst,
+       tabBarDirection = tabBarDirection ?? TabDirection.newestFirst,
+       tabIntentOpenSetting = tabIntentOpenSetting ?? TabIntentOpenSetting.ask,
+       autoHideTabBar = autoHideTabBar ?? true,
+       tabBarSwipeAction =
+           tabBarSwipeAction ?? TabBarSwipeAction.switchLastOpened,
+       historyAutoCleanInterval =
+           historyAutoCleanInterval ?? const Duration(days: 90),
+       tabViewBottomSheet = tabViewBottomSheet ?? false,
+       tabBarShowContextualBar = tabBarShowContextualBar ?? true,
+       tabBarShowQuickTabSwitcherBar = tabBarShowQuickTabSwitcherBar ?? true,
+       tabBarPosition = tabBarPosition ?? TabBarPosition.bottom,
+       tabBarLayout = tabBarLayout ?? TabBarLayout.compact,
+       quickTabSwitcherMode =
+           quickTabSwitcherMode ?? QuickTabSwitcherMode.lastUsedTabs,
+       pullToRefreshEnabled = pullToRefreshEnabled ?? true,
+       useExternalDownloadManager = useExternalDownloadManager ?? false,
+       doubleBackCloseTab = doubleBackCloseTab ?? true,
+       unassignedTabsAutoCleanInterval =
+           unassignedTabsAutoCleanInterval ?? Duration.zero,
+       maxSearchHistoryEntries = maxSearchHistoryEntries ?? 5,
+       allowClipboardAccess = allowClipboardAccess ?? true,
+       tabListShowFavicons = tabListShowFavicons ?? false,
+       quickTabSwitcherShowTitles = quickTabSwitcherShowTitles ?? true,
+       quickTabSwitcherShowHistorySuggestions =
+           quickTabSwitcherShowHistorySuggestions ?? true,
+       syncServerOverride = syncServerOverride ?? '',
+       syncTokenServerOverride = syncTokenServerOverride ?? '',
+       urlCleanerEnabled = urlCleanerEnabled ?? true,
+       urlCleanerAutoApply = urlCleanerAutoApply ?? false,
+       urlCleanerAllowReferralMarketing =
+           urlCleanerAllowReferralMarketing ?? false,
+       urlCleanerCatalogUrl =
+           urlCleanerCatalogUrl ??
+           'https://rules2.clearurls.xyz/data.minify.json',
+       urlCleanerHashUrl =
+           urlCleanerHashUrl ??
+           'https://rules2.clearurls.xyz/rules.minify.hash',
+       urlCleanerAutoUpdate = urlCleanerAutoUpdate ?? false,
+       urlCleanerLastUpdateWasAuto = urlCleanerLastUpdateWasAuto ?? false,
+       smallWebTabType = smallWebTabType ?? TabType.private,
+       tabBarLongPressUrlCopy = tabBarLongPressUrlCopy ?? true,
+       unshortenerEnabled = unshortenerEnabled ?? false,
+       unshortenerToken = unshortenerToken ?? '',
+       allowNonManifestPwaInstall = allowNonManifestPwaInstall ?? false,
+       blockExternalAppsEnabled = blockExternalAppsEnabled ?? false,
+       externalAppIntentPolicies = externalAppIntentPolicies ?? const {},
+       homepageOpeningScreen =
+           homepageOpeningScreen ?? HomepageOpeningScreen.lastTab,
+       homepageShowJumpBackIn = homepageShowJumpBackIn ?? true,
+       homepageShowBookmarks = homepageShowBookmarks ?? true,
+       homepageShowRecentlyVisited = homepageShowRecentlyVisited ?? true,
+       toolbarHeightSize = toolbarHeightSize ?? ToolbarHeightSize.normal;
+
+  factory GeneralSettings.fromJson(Map<String, dynamic> json) {
+    // Migrate legacy `newTabPosition` setting to direction settings.
+    // Old `first` (new tabs at top) → newestFirst; `end` → oldestFirst.
+    // TODO: Drop this fallback (and the `newTabPosition` row in the user
+    // settings DB) once enough releases have shipped that rolling back to a
+    // version without `tabListDirection`/`tabBarDirection` is no longer a
+    // concern.
+    final legacyNewTabPosition = json['newTabPosition'];
+    if (legacyNewTabPosition != null) {
+      final mapped = legacyNewTabPosition == 'end'
+          ? 'oldestFirst'
+          : 'newestFirst';
+      json.putIfAbsent('tabListDirection', () => mapped);
+      json.putIfAbsent('tabBarDirection', () => mapped);
+    }
+    return _$GeneralSettingsFromJson(json);
+  }
+
+  Map<String, dynamic> toJson() => _$GeneralSettingsToJson(this);
+
+  TabType get effectiveDefaultCreateTabType {
+    if (!showIsolatedTabUi && storedDefaultCreateTabType == TabType.isolated) {
+      return TabType.regular;
+    }
+    return storedDefaultCreateTabType;
+  }
+
+  TabType get effectiveSmallWebTabType {
+    if (!showIsolatedTabUi && smallWebTabType == TabType.isolated) {
+      return TabType.private;
+    }
+    return smallWebTabType;
+  }
+
+  TabIntentOpenSetting get effectiveTabIntentOpenSetting {
+    if (!showIsolatedTabUi &&
+        tabIntentOpenSetting == TabIntentOpenSetting.isolated) {
+      return TabIntentOpenSetting.ask;
+    }
+    return tabIntentOpenSetting;
+  }
+
+  QuickTabSwitcherMode effectiveUiQuickTabSwitcherMode() {
+    if (!showContainerUi &&
+        quickTabSwitcherMode == QuickTabSwitcherMode.containerTabs) {
+      return QuickTabSwitcherMode.lastUsedTabs;
+    }
+    return quickTabSwitcherMode;
+  }
+
+  /// Multiplier applied to the standard Material `kToolbarHeight` so the
+  /// user can free up additional web-page real estate. ~75% / 100% / 125%.
+  double get toolbarHeightFactor {
+    switch (toolbarHeightSize) {
+      case ToolbarHeightSize.compact:
+        return 0.75;
+      case ToolbarHeightSize.normal:
+        return 1.0;
+      case ToolbarHeightSize.large:
+        return 1.25;
+    }
+  }
+
+  @override
+  List<Object?> get hashParameters => [
+    themeMode,
+    uiScaleFactor,
+    disableAnimations,
+    showModalBarrier,
+    enableReadability,
+    enforceReadability,
+    deleteBrowsingDataOnQuit,
+    screenshotProtectionEnabled,
+    defaultSearchProvider,
+    defaultSearchSuggestionsProvider,
+    createChildTabsOption,
+    enableLocalAiFeatures,
+    showContainerUi,
+    showIsolatedTabUi,
+    storedDefaultCreateTabType,
+    tabListDirection,
+    tabBarDirection,
+    tabIntentOpenSetting,
+    autoHideTabBar,
+    tabBarSwipeAction,
+    historyAutoCleanInterval,
+    tabViewBottomSheet,
+    tabBarShowContextualBar,
+    tabBarShowQuickTabSwitcherBar,
+    tabBarPosition,
+    tabBarLayout,
+    quickTabSwitcherMode,
+    pullToRefreshEnabled,
+    useExternalDownloadManager,
+    doubleBackCloseTab,
+    unassignedTabsAutoCleanInterval,
+    maxSearchHistoryEntries,
+    allowClipboardAccess,
+    tabListShowFavicons,
+    quickTabSwitcherShowTitles,
+    quickTabSwitcherShowHistorySuggestions,
+    syncServerOverride,
+    syncTokenServerOverride,
+    urlCleanerEnabled,
+    urlCleanerAutoApply,
+    urlCleanerAllowReferralMarketing,
+    urlCleanerCatalogUrl,
+    urlCleanerHashUrl,
+    urlCleanerAutoUpdate,
+    urlCleanerLastCheckEpochMs,
+    urlCleanerLastUpdateWasAuto,
+    smallWebTabType,
+    tabBarLongPressUrlCopy,
+    unshortenerEnabled,
+    unshortenerToken,
+    allowNonManifestPwaInstall,
+    blockExternalAppsEnabled,
+    externalAppIntentPolicies,
+    homepageOpeningScreen,
+    homepageShowJumpBackIn,
+    homepageShowBookmarks,
+    homepageShowRecentlyVisited,
+    toolbarHeightSize,
+  ];
+}

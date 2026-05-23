@@ -1,0 +1,88 @@
+/*
+ * Copyright (c) 2024-2026 Fabian Freund.
+ *
+ * This file is part of WebLibre
+ * (see https://weblibre.eu).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+import 'package:flutter/material.dart';
+import 'package:flutter_material_design_icons/flutter_material_design_icons.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:nullability/nullability.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import 'package:weblibre/features/geckoview/domain/entities/states/tab.dart';
+import 'package:weblibre/presentation/controllers/website_title.dart';
+import 'package:weblibre/presentation/widgets/failure_widget.dart';
+import 'package:weblibre/presentation/widgets/safe_raw_image.dart';
+import 'package:weblibre/presentation/widgets/uri_breadcrumb.dart';
+
+class WebsiteTitleTile extends HookConsumerWidget {
+  final TabState initialTabState;
+
+  const WebsiteTitleTile(this.initialTabState, {super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pageInfoAsync = ref.watch(completePageInfoProvider(initialTabState));
+
+    return Skeletonizer(
+      enabled: pageInfoAsync.isLoading,
+      child: pageInfoAsync.when(
+        skipLoadingOnReload: true,
+        data: (info) {
+          return ListTile(
+            leading: RepaintBoundary(
+              child:
+                  info.favicon.mapNotNull(
+                    (favicon) => SafeRawImage(
+                      image: favicon.image,
+                      height: 24,
+                      width: 24,
+                      fallback: const Icon(MdiIcons.web, size: 24),
+                    ),
+                  ) ??
+                  const Icon(MdiIcons.web, size: 24),
+            ),
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              info.title.whenNotEmpty ?? info.url.authority,
+              maxLines: 6,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: UriBreadcrumb(uri: initialTabState.url),
+          );
+        },
+        error: (error, stackTrace) {
+          return FailureWidget(
+            title: error.toString(),
+            onRetry: () => ref.refresh(
+              pageInfoProvider(initialTabState.url, isImageRequest: false),
+            ),
+          );
+        },
+        loading: () => ListTile(
+          leading: SafeRawImage(
+            image: initialTabState.favicon?.image,
+            height: 24,
+            width: 24,
+          ),
+          contentPadding: EdgeInsets.zero,
+          title: Text(initialTabState.titleOrAuthority),
+          subtitle: UriBreadcrumb(uri: initialTabState.url),
+        ),
+      ),
+    );
+  }
+}

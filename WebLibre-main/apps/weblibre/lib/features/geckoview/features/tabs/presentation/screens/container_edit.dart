@@ -1,0 +1,372 @@
+/*
+ * Copyright (c) 2024-2026 Fabian Freund.
+ *
+ * This file is part of WebLibre
+ * (see https://weblibre.eu).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
+import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:flutter_material_design_icons/flutter_material_design_icons.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:nullability/nullability.dart';
+import 'package:weblibre/core/uuid.dart';
+import 'package:weblibre/features/geckoview/features/tabs/data/models/container_data.dart';
+import 'package:weblibre/features/geckoview/features/tabs/domain/repositories/container.dart';
+import 'package:weblibre/features/geckoview/features/tabs/presentation/controllers/container_topic.dart';
+import 'package:weblibre/features/geckoview/features/tabs/presentation/dialogs/delete_container_dialog.dart';
+import 'package:weblibre/features/geckoview/features/tabs/presentation/dialogs/discard_changes_dialog.dart';
+import 'package:weblibre/features/geckoview/features/tabs/presentation/screens/container_sites.dart';
+import 'package:weblibre/features/geckoview/features/tabs/presentation/widgets/color_picker_dialog.dart';
+import 'package:weblibre/features/geckoview/features/tabs/utils/container_colors.dart';
+import 'package:weblibre/presentation/icons/tor_icons.dart';
+
+enum _DialogMode { create, edit }
+
+class ContainerEditScreen extends HookConsumerWidget {
+  final _DialogMode _mode;
+
+  final ContainerData initialContainer;
+  final Set<String>? tabIds;
+
+  const ContainerEditScreen._({
+    required _DialogMode mode,
+    required this.initialContainer,
+    this.tabIds,
+  }) : _mode = mode;
+
+  factory ContainerEditScreen.create({
+    required ContainerData initialContainer,
+    Set<String>? tabIds,
+  }) {
+    return ContainerEditScreen._(
+      mode: _DialogMode.create,
+      initialContainer: initialContainer,
+      tabIds: tabIds,
+    );
+  }
+
+  factory ContainerEditScreen.edit({
+    required ContainerDataWithCount initialContainer,
+  }) {
+    return ContainerEditScreen._(
+      mode: _DialogMode.edit,
+      initialContainer: initialContainer,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final selectedColor = useState(initialContainer.color);
+    final contextualIdentity = useState(
+      initialContainer.metadata.contextualIdentity,
+    );
+    final useProxy = useState(initialContainer.metadata.useProxy);
+    final clearDataOnExit = useState(initialContainer.metadata.clearDataOnExit);
+    final assignedSites = useState(initialContainer.metadata.assignedSites);
+
+    final textController = useTextEditingController(
+      text: initialContainer.name,
+    );
+    useListenable(textController);
+
+    ContainerData buildContainer() {
+      final name = textController.text.trim();
+      return initialContainer.copyWith(
+        name: name.isNotEmpty ? name : null,
+        color: selectedColor.value,
+        metadata: initialContainer.metadata.copyWith(
+          contextualIdentity: contextualIdentity.value,
+          useProxy: useProxy.value && contextualIdentity.value != null,
+          clearDataOnExit:
+              clearDataOnExit.value && contextualIdentity.value != null,
+          assignedSites: assignedSites.value,
+        ),
+      );
+    }
+
+    Future<ContainerData> saveContainer() async {
+      final container = buildContainer();
+      switch (_mode) {
+        case _DialogMode.create:
+          await ref
+              .read(containerRepositoryProvider.notifier)
+              .addContainer(container);
+        case _DialogMode.edit:
+          await ref
+              .read(containerRepositoryProvider.notifier)
+              .replaceContainer(container);
+      }
+      return container;
+    }
+
+    final container = buildContainer();
+    //Empty copy to create comparable container with same type
+    final comparison = initialContainer.copyWith();
+
+    return PopScope(
+      canPop: container == comparison,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        final choice = await showDiscardChangesDialog(context);
+        if (choice == null) return;
+
+        switch (choice) {
+          case DiscardChangesChoice.discard:
+            if (context.mounted) {
+              context.pop();
+            }
+          case DiscardChangesChoice.save:
+            final container = await saveContainer();
+            if (context.mounted) {
+              context.pop(container);
+            }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(switch (_mode) {
+            _DialogMode.create => 'New Container',
+            _DialogMode.edit => 'Edit Container',
+          }),
+          actions: [
+            IconButton(
+              onPressed: () async {
+                final container = await saveContainer();
+                if (context.mounted) {
+                  context.pop(container);
+                }
+              },
+              icon: const Icon(Icons.check),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    children: [
+                      TextField(
+                        decoration: InputDecoration(
+                          prefixIcon: Padding(
+                            padding: const EdgeInsets.all(10.0),
+                            child: AnimatedContainer(
+                              duration: disableAnimations
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 300),
+                              height: 24,
+                              width: 24,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: ContainerColors.preview(
+                                  selectedColor.value,
+                                ),
+                              ),
+                            ),
+                          ),
+                          label: const Text('Name'),
+                          suffixIcon: _buildMagicWandButton(
+                            context,
+                            ref,
+                            textController,
+                          ),
+                        ),
+                        controller: textController,
+                      ),
+                      TextButton.icon(
+                        label: const Text('Select Color'),
+                        icon: const Icon(Icons.colorize),
+                        onPressed: () async {
+                          final color = await showDialog<Color?>(
+                            context: context,
+                            builder: (context) =>
+                                ColorPickerDialog(selectedColor.value),
+                          );
+
+                          if (color != null) {
+                            selectedColor.value = color;
+                          }
+                        },
+                      ),
+                      SwitchListTile.adaptive(
+                        value: contextualIdentity.value != null,
+                        title: const Text('Cookie Isolation'),
+                        secondary: const Icon(MdiIcons.cookieLock),
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (_mode == _DialogMode.create)
+                            ? (value) {
+                                contextualIdentity.value = value
+                                    ? initialContainer
+                                              .metadata
+                                              .contextualIdentity ??
+                                          uuid.v4()
+                                    : null;
+
+                                if (!value && useProxy.value) {
+                                  useProxy.value = false;
+                                }
+                              }
+                            : null,
+                      ),
+                      SwitchListTile.adaptive(
+                        value: useProxy.value,
+                        title: const Text('Use Tor™ Proxy'),
+                        secondary: const Icon(TorIcons.onionAlt),
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: switch (_mode) {
+                          _DialogMode.create => (value) {
+                            if (value && contextualIdentity.value == null) {
+                              contextualIdentity.value =
+                                  initialContainer
+                                      .metadata
+                                      .contextualIdentity ??
+                                  uuid.v4();
+                            }
+
+                            useProxy.value = value;
+                          },
+                          _DialogMode.edit =>
+                            (contextualIdentity.value != null)
+                                ? (value) {
+                                    useProxy.value = value;
+                                  }
+                                : null,
+                        },
+                      ),
+                      SwitchListTile.adaptive(
+                        value: clearDataOnExit.value,
+                        title: const Text('Clear Data on Exit'),
+                        subtitle: const Text(
+                          'Clear cookies and site data when app closes',
+                        ),
+                        secondary: const Icon(MdiIcons.databaseRemove),
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (contextualIdentity.value != null)
+                            ? (value) {
+                                clearDataOnExit.value = value;
+                              }
+                            : null,
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.web),
+                        title: const Text('Assigned Sites'),
+                        trailing: const Icon(Icons.chevron_right),
+                        contentPadding: EdgeInsets.zero,
+                        onTap: () async {
+                          final result = await showDialog<Set<Uri>>(
+                            context: context,
+                            builder: (context) => ContainerSitesScreen(
+                              initialSites: assignedSites.value?.toSet() ?? {},
+                            ),
+                          );
+
+                          if (result.isEmpty) {
+                            assignedSites.value = null;
+                          } else {
+                            assignedSites.value = result!.toList();
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                if (_mode == _DialogMode.edit)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        foregroundColor: Theme.of(context).colorScheme.error,
+                        iconColor: Theme.of(context).colorScheme.error,
+                      ),
+                      label: const Text('Delete'),
+                      icon: const Icon(Icons.delete),
+                      onPressed: () async {
+                        final result = await showDeleteContainerDialog(context);
+
+                        if (result == true) {
+                          await ref
+                              .read(containerRepositoryProvider.notifier)
+                              .deleteContainer(initialContainer.id);
+
+                          if (context.mounted) {
+                            context.pop();
+                          }
+                        }
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildMagicWandButton(
+    BuildContext context,
+    WidgetRef ref,
+    TextEditingController textController,
+  ) {
+    final predict = switch (_mode) {
+      _DialogMode.edit => switch (initialContainer) {
+        ContainerDataWithCount(:final tabCount?) when tabCount > 0 =>
+          (WidgetRef ref) => ref
+              .read(containerTopicControllerProvider.notifier)
+              .predictDocumentTopic(initialContainer.id),
+        _ => null,
+      },
+      _DialogMode.create => switch (tabIds) {
+        final ids? when ids.isNotEmpty =>
+          (WidgetRef ref) => ref
+              .read(containerTopicControllerProvider.notifier)
+              .predictTopicFromTabIds(ids),
+        _ => null,
+      },
+    };
+
+    if (predict == null) return null;
+
+    return Consumer(
+      builder: (context, ref, child) {
+        final isLoading = ref.watch(
+          containerTopicControllerProvider.select((value) => value.isLoading),
+        );
+
+        return IconButton(
+          onPressed: isLoading
+              ? null
+              : () async {
+                  final topic = await predict(ref);
+                  if (topic != null) {
+                    textController.text = topic;
+                  }
+                },
+          icon: const Icon(MdiIcons.creation),
+        );
+      },
+    );
+  }
+}

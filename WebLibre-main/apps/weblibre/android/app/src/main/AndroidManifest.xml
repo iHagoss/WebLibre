@@ -1,0 +1,281 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- This is needed because the android.permission.CAMERA above automatically
+    adds a requirements for camera hardware and we don't want add those restrictions -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+
+
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"  />
+
+    <!-- Fenix only uses this in debug manifest -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Needed for uploading media files on devices with Android 13 and later. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+
+    <!-- Needed to interact with all apps installed on a device -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <!-- Needed to support Credential Manager with Android 14 and later. -->
+    <uses-permission android:name="android.permission.CREDENTIAL_MANAGER_SET_ORIGIN" />
+    <uses-permission android:name="android.permission.CREDENTIAL_MANAGER_QUERY_CANDIDATE_CREDENTIALS" />
+
+    
+    <application
+        android:label="${appName}"
+        android:name=".MyApplication"
+        android:icon="@mipmap/launcher_icon"
+        android:usesCleartextTraffic="true"
+        android:enableOnBackInvokedCallback="true">
+        
+        <activity 
+            android:name="eu.weblibre.flutter_mozilla_components.activities.NotificationActivity" 
+            android:theme="@style/Theme.AppCompat.Translucent" 
+            android:exported="false"
+            android:launchMode="singleTop" />
+
+        <receiver
+            android:name="eu.weblibre.flutter_mozilla_components.gatekeeper.GatekeeperNotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="eu.weblibre.gecko.gatekeeper.ALLOW_ONCE" />
+                <action android:name="eu.weblibre.gecko.gatekeeper.ALWAYS_ALLOW" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="org.ironfoxoss.unifiedpush.PushReceiver"
+            tools:node="remove" />
+
+        <receiver
+            android:name="eu.weblibre.flutter_mozilla_components.receivers.UnifiedPushReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.MESSAGE" />
+                <action android:name="org.unifiedpush.android.connector.UNREGISTERED" />
+                <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT" />
+                <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED" />
+            </intent-filter>
+        </receiver>
+        
+        <activity
+            android:name=".MainActivity"
+            android:label="${appName}"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="${applicationId}.task"
+            android:theme="@style/LaunchTheme"
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- We do want to ahndle "open with" by ourselfs. Prevents automatically pushing routes. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+                <category android:name="android.intent.category.APP_BROWSER"/>
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.LAUNCH" />
+            </intent-filter>
+
+            </activity>
+
+        <!-- Intent router: receives external VIEW/SEND intents and routes
+             Custom Tab / PWA to ExternalAppBrowserActivity, regular intents to MainActivity -->
+        <activity
+            android:name="eu.weblibre.flutter_mozilla_components.activities.IntentReceiverActivity"
+            android:theme="@style/Theme.AppCompat.Translucent"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:relinquishTaskIdentity="true"
+            android:taskAffinity="">
+
+            <!-- Required exactly like this to appear in both default app choosers and when explicitly browsing -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="mozilla.components.pwa.category.SHORTCUT" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+            </intent-filter>
+            <!-- like above but specifying additional schemes. Not qualified for app chooser. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="application/xhtml+xml" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.WEB_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!-- PWA launch from home screen shortcut -->
+            <intent-filter>
+                <action android:name="mozilla.components.feature.pwa.VIEW_PWA" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="https" />
+            </intent-filter>
+        </activity>
+
+        <!-- Native activity for Custom Tabs and PWA browsing (non-Flutter) -->
+        <activity
+            android:name="eu.weblibre.flutter_mozilla_components.activities.ExternalAppBrowserActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:documentLaunchMode="always"
+            android:autoRemoveFromRecents="false"
+            android:theme="@style/ExternalAppBrowserTheme"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
+            android:persistableMode="persistNever"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize|stateAlwaysHidden" />
+
+        <activity
+            android:name="eu.weblibre.flutter_mozilla_components.activities.AuthCustomTabActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:autoRemoveFromRecents="false"
+            android:theme="@style/ExternalAppBrowserTheme"
+            android:configChanges="keyboard|keyboardHidden|mcc|mnc|orientation|screenSize|layoutDirection|smallestScreenSize|screenLayout"
+            android:windowSoftInputMode="adjustResize|stateAlwaysHidden" />
+
+        <activity
+            android:name="eu.weblibre.flutter_mozilla_components.activities.AuthIntentReceiverActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="eu.weblibre.flutter_mozilla_components.addons.WebExtensionActionPopupActivity"
+            android:label="@string/mozac_feature_addons_addons"
+            android:theme="@style/AppTheme"/>
+
+        <receiver
+            android:name=".SearchBarWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/search_bar_widget_info" />
+        </receiver>
+
+
+        <service
+            android:name="eu.weblibre.flutter_mozilla_components.services.CustomTabsService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.support.customtabs.action.CustomTabsService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name="eu.weblibre.flutter_mozilla_components.services.DownloadService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <service android:name="eu.weblibre.flutter_mozilla_components.services.MediaSessionService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false" />
+
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
+
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="*" />
+        </intent>
+    </queries>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <!-- This will show a lot of app actions in context menu when selecting text
+     <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries> -->
+</manifest>

@@ -1,0 +1,10 @@
+# dependency_validator config for locale_resolver_example.
+# The example's lib/main.dart currently has its imports commented out, so the
+# validator flags every declared dependency as unused. They are kept in
+# pubspec.yaml because they are required as soon as the example is re-enabled.
+ignore:
+  - flutter
+  - flutter_test
+  - integration_test
+  - lint
+  - locale_resolver

@@ -1,0 +1,46 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "WebLibre",
+            "cwd": "apps/weblibre",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--device-user",
+                "0",
+                "--flavor",
+                "alpha"
+            ]
+        },
+        {
+            "name": "WebLibre (profile mode)",
+            "cwd": "apps/weblibre",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile",
+            "args": [
+                "--device-user",
+                "0",
+                "--flavor",
+                "alpha"
+            ]
+        },
+        {
+            "name": "WebLibre (release mode)",
+            "cwd": "apps/weblibre",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+            "args": [
+                "--device-user",
+                "0",
+                "--flavor",
+                "alpha"
+            ]
+        },
+    ]
+}

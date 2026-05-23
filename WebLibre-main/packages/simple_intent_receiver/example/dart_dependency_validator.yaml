@@ -1,0 +1,9 @@
+# dependency_validator config for simple_intent_receiver_example.
+# - flutter_test is declared for example widget tests under test/.
+# - integration_test is declared for the standard Flutter integration_test
+#   harness in this example app.
+# - lint is consumed via include: in analysis_options.yaml.
+ignore:
+  - flutter_test
+  - integration_test
+  - lint

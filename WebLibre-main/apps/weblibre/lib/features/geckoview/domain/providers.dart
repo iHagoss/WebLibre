@@ -1,0 +1,341 @@
+/*
+ * Copyright (c) 2024-2026 Fabian Freund.
+ *
+ * This file is part of WebLibre
+ * (see https://weblibre.eu).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+import 'dart:async';
+
+import 'package:flutter_mozilla_components/flutter_mozilla_components.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:weblibre/core/logger.dart';
+import 'package:weblibre/core/providers/router.dart';
+import 'package:weblibre/core/routing/routes.dart';
+import 'package:weblibre/features/bangs/domain/providers/bangs.dart';
+import 'package:weblibre/features/geckoview/domain/providers/selected_tab.dart';
+import 'package:weblibre/features/geckoview/domain/providers/tab_state.dart';
+import 'package:weblibre/features/geckoview/domain/repositories/tab.dart';
+import 'package:weblibre/features/geckoview/features/find_in_page/domain/repositories/find_in_page.dart';
+import 'package:weblibre/features/geckoview/features/tabs/data/entities/tab_mode.dart';
+import 'package:weblibre/features/user/domain/repositories/general_settings.dart';
+
+part 'providers.g.dart';
+
+@Riverpod(keepAlive: true)
+GeckoSelectionActionService selectionActionService(Ref ref) {
+  final service = GeckoSelectionActionService.setUp();
+
+  unawaited(
+    service.setActions([
+      NewTabAction((text) async {
+        if (ref.mounted) {
+          final router = await ref.read(routerProvider.future);
+          if (ref.mounted) {
+            final settings = ref.read(generalSettingsWithDefaultsProvider);
+            final selectedTabState = ref.read(
+              tabStatesProvider,
+            )[ref.read(selectedTabProvider)];
+
+            final selectedTabType = selectedTabState?.tabMode.toTabType();
+
+            final route = SearchRoute(
+              tabType:
+                  selectedTabType ?? settings.effectiveDefaultCreateTabType,
+              searchText: text,
+            );
+
+            await router.push(route.location);
+          }
+        }
+      }),
+      DefaultSearchAction((text) async {
+        if (!ref.mounted) return;
+
+        final searchBang = await ref.read(defaultSearchBangProvider.future);
+
+        if (!ref.mounted) return;
+
+        if (searchBang != null) {
+          final currentTab = ref.read(
+            tabStatesProvider,
+          )[ref.read(selectedTabProvider)];
+
+          final tabMode =
+              currentTab?.tabMode ??
+              TabMode.fromTabType(
+                ref
+                    .read(generalSettingsWithDefaultsProvider)
+                    .effectiveDefaultCreateTabType,
+              );
+
+          await ref
+              .read(tabRepositoryProvider.notifier)
+              .addTab(
+                url: searchBang.getTemplateUrl(text),
+                parentId: currentTab?.id,
+                tabMode: tabMode,
+                selectTab: true,
+              );
+          return;
+        }
+
+        logger.w('No search bang found, falling back to search screen');
+
+        final router = await ref.read(routerProvider.future);
+        if (!ref.mounted) return;
+
+        final settings = ref.read(generalSettingsWithDefaultsProvider);
+        final selectedTabState = ref.read(
+          tabStatesProvider,
+        )[ref.read(selectedTabProvider)];
+
+        await router.push(
+          SearchRoute(
+            tabType:
+                selectedTabState?.tabMode.toTabType() ??
+                settings.effectiveDefaultCreateTabType,
+            searchText: text,
+          ).location,
+        );
+      }),
+      FindInPageAction((text) async {
+        if (ref.mounted) {
+          final tabId = ref.read(selectedTabProvider);
+          if (tabId != null) {
+            await ref
+                .read(findInPageRepositoryProvider(tabId).notifier)
+                .findAll(text);
+          }
+        }
+      }),
+      ShareAction((text) async {
+        await SharePlus.instance.share(ShareParams(text: text));
+      }),
+      CallAction((text) async {
+        final uri = Uri.tryParse('tel:${text.replaceAll(' ', '')}');
+
+        if (uri != null) {
+          final canLaunch = await canLaunchUrl(uri);
+          if (canLaunch) {
+            await launchUrl(uri);
+          }
+        }
+      }),
+      EmailAction((text) async {
+        final uri = Uri.tryParse('mailto:$text');
+
+        if (uri != null) {
+          final canLaunch = await canLaunchUrl(uri);
+          if (canLaunch) {
+            await launchUrl(uri);
+          }
+        }
+      }),
+    ]),
+  );
+
+  return service;
+}
+
+@Riverpod(keepAlive: true)
+GeckoEventService eventService(Ref ref) {
+  final service = GeckoEventService.setUp();
+
+  ref.onDispose(() async {
+    await service.dispose();
+  });
+
+  return service;
+}
+
+@Riverpod(keepAlive: true)
+GeckoAddonService addonService(Ref ref) {
+  final service = GeckoAddonService.setUp();
+
+  ref.onDispose(() async {
+    await service.dispose();
+  });
+
+  return service;
+}
+
+@Riverpod(keepAlive: true)
+GeckoTabContentService tabContentService(Ref ref) {
+  final service = GeckoTabContentService.setUp();
+
+  ref.onDispose(() async {
+    await service.dispose();
+  });
+
+  return service;
+}
+
+@Riverpod(keepAlive: true)
+GeckoSuggestionsService engineSuggestionsService(Ref ref) {
+  final service = GeckoSuggestionsService.setUp();
+
+  ref.onDispose(() async {
+    await service.dispose();
+  });
+
+  return service;
+}
+
+@Riverpod(keepAlive: true)
+GeckoViewportService viewportService(Ref ref) {
+  final service = GeckoViewportService();
+  service.setUp();
+
+  ref.onDispose(() async {
+    await service.dispose();
+  });
+
+  return service;
+}
+
+@Riverpod(keepAlive: true)
+class EngineReadyState extends _$EngineReadyState {
+  Future<bool> waitUntilReady({
+    // Increased from 3s to 30s so first-launch engine initialization
+    // (especially on cold-start with extensions installing) does not race
+    // with the pane attachment flow and surface a noisy warning log.
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    final eventService = ref.read(eventServiceProvider);
+    final currentState =
+        eventService.engineReadyStateEvents.valueOrNull ?? false;
+
+    if (currentState) {
+      return true;
+    }
+
+    try {
+      final ready = await eventService.engineReadyStateEvents
+          .firstWhere((value) => value == true)
+          .timeout(timeout);
+
+      if (ref.mounted) {
+        state = ready;
+      }
+
+      return ready;
+    } on TimeoutException {
+      logger.w('Waiting for engine ready state timed out');
+
+      if (ref.mounted) {
+        state = true;
+      }
+
+      return true;
+    }
+  }
+
+  @override
+  bool build() {
+    final eventService = ref.watch(eventServiceProvider);
+
+    final currentState =
+        eventService.engineReadyStateEvents.valueOrNull ?? false;
+
+    if (!currentState) {
+      unawaited(waitUntilReady());
+    }
+
+    final sub = eventService.engineReadyStateEvents.listen((value) {
+      if (ref.mounted) {
+        state = value;
+      }
+    });
+
+    ref.onDispose(() async {
+      await sub.cancel();
+    });
+
+    return currentState;
+  }
+}
+
+/// Stream of ML model progress events
+@Riverpod(keepAlive: true)
+Stream<MlProgressData> mlProgressEvents(Ref ref) {
+  final service = ref.watch(eventServiceProvider);
+  return service.mlProgressEvents;
+}
+
+/// Translation engine state (browser-level: supported languages, engine availability)
+@Riverpod(keepAlive: true)
+class TranslationEngineState extends _$TranslationEngineState {
+  @override
+  TranslationEngineStateData? build() {
+    final eventService = ref.watch(eventServiceProvider);
+
+    final sub = eventService.translationEngineEvents.listen((value) {
+      if (ref.mounted) {
+        state = value;
+      }
+    });
+
+    ref.onDispose(() async {
+      await sub.cancel();
+    });
+
+    return eventService.translationEngineEvents.valueOrNull;
+  }
+}
+
+/// Tracks active ML model downloads
+@Riverpod()
+class MlDownloadState extends _$MlDownloadState {
+  Timer? _clearTimer;
+
+  @override
+  MlProgressData? build() {
+    ref.listen(mlProgressEventsProvider, (previous, next) {
+      next.whenData((progress) {
+        if (!ref.mounted) return;
+
+        if (progress.type == MlProgressType.downloading) {
+          if (progress.status == MlProgressStatus.done) {
+            // Keep showing for 2 seconds after completion
+            _clearTimer?.cancel();
+            _clearTimer = Timer(const Duration(seconds: 2), () {
+              if (ref.mounted && state != null && state!.id == progress.id) {
+                state = null;
+              }
+            });
+          } else {
+            state = progress;
+          }
+        }
+      });
+    });
+
+    ref.onDispose(() {
+      _clearTimer?.cancel();
+      _clearTimer = null;
+    });
+
+    return null;
+  }
+
+  void clear() {
+    _clearTimer?.cancel();
+    _clearTimer = null;
+    state = null;
+  }
+}

@@ -1,0 +1,96 @@
+CREATE TABLE setting (
+  "key" TEXT PRIMARY KEY NOT NULL,
+  partition_key TEXT,
+  "value" ANY
+) STRICT;
+
+CREATE TABLE icon_cache (
+  origin TEXT PRIMARY KEY NOT NULL,
+  icon_data BLOB NOT NULL,
+  fetch_date DATETIME NOT NULL
+);
+
+CREATE TABLE onboarding (
+  revision INTEGER NOT NULL,
+  completion_date DATETIME NOT NULL
+);
+
+CREATE TABLE riverpod (
+  "key" TEXT PRIMARY KEY NOT NULL,
+  json TEXT NOT NULL,
+  expireAt DATETIME,
+  destroyKey TEXT
+) WITHOUT ROWID;
+
+CREATE TABLE toolbar_button_configs (
+  button_id   TEXT NOT NULL PRIMARY KEY,
+  order_key   TEXT NOT NULL,
+  is_visible  BOOLEAN NOT NULL DEFAULT TRUE,
+  fallback_id TEXT REFERENCES toolbar_button_configs(button_id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_toolbar_order_key ON toolbar_button_configs(order_key);
+
+-- All four queries are scoped to a visibility partition (`is_visible`) so the
+-- generated key falls strictly within the targeted section. The Customize
+-- Toolbar UI renders Enabled and Disabled as two independent reorderable
+-- lists; without the partition, leading/trailing keys would cross the section
+-- boundary and surface as buttons "jumping" after a visibility toggle.
+toolbarLeadingOrderKey(:bucket AS INTEGER, :is_visible AS BOOL):
+  SELECT lexo_rank_previous(
+    :bucket,
+    (
+      SELECT order_key
+      FROM toolbar_button_configs
+      WHERE is_visible = :is_visible
+      ORDER BY order_key
+      LIMIT 1
+    )
+  );
+
+toolbarTrailingOrderKey(:bucket AS INTEGER, :is_visible AS BOOL):
+  SELECT lexo_rank_next(
+    :bucket,
+    (
+      SELECT order_key
+      FROM toolbar_button_configs
+      WHERE is_visible = :is_visible
+      ORDER BY order_key DESC
+      LIMIT 1
+    )
+  );
+
+toolbarOrderKeyAfterButton(:button_id AS TEXT, :is_visible AS BOOL):
+  WITH ordered_table AS (
+    SELECT
+      button_id,
+      order_key,
+      LEAD(order_key) OVER (ORDER BY order_key) AS next_order_key
+    FROM toolbar_button_configs
+    WHERE is_visible = :is_visible
+  )
+  SELECT lexo_rank_reorder_after(order_key, next_order_key)
+  FROM ordered_table
+  WHERE button_id = :button_id;
+
+toolbarOrderKeyBeforeButton(:button_id AS TEXT, :is_visible AS BOOL):
+  WITH ordered_table AS (
+    SELECT
+      button_id,
+      order_key,
+      LAG(order_key) OVER (ORDER BY order_key) AS prev_order_key
+    FROM toolbar_button_configs
+    WHERE is_visible = :is_visible
+  )
+  SELECT lexo_rank_reorder_before(order_key, prev_order_key)
+  FROM ordered_table
+  WHERE button_id = :button_id;
+
+evictCacheEntries:
+  DELETE FROM icon_cache 
+  WHERE rowid IN (
+      SELECT rowid 
+      FROM icon_cache 
+      ORDER BY fetch_date DESC 
+      LIMIT -1 OFFSET :limit
+  );

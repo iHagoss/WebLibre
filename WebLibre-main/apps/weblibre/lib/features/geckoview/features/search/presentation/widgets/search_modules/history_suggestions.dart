@@ -1,0 +1,157 @@
+/*
+ * Copyright (c) 2024-2026 Fabian Freund.
+ *
+ * This file is part of WebLibre
+ * (see https://weblibre.eu).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:flutter_material_design_icons/flutter_material_design_icons.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:nullability/nullability.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import 'package:weblibre/features/geckoview/features/search/domain/providers/engine_suggestions.dart';
+import 'package:weblibre/features/geckoview/features/search/domain/providers/search_modules_view.dart';
+import 'package:weblibre/features/geckoview/features/search/presentation/widgets/search_modules/search_module_section.dart';
+import 'package:weblibre/features/geckoview/utils/image_helper.dart';
+import 'package:weblibre/presentation/hooks/cached_future.dart';
+import 'package:weblibre/presentation/hooks/on_listenable_change_selector.dart';
+import 'package:weblibre/presentation/widgets/failure_widget.dart';
+import 'package:weblibre/presentation/widgets/safe_raw_image.dart';
+import 'package:weblibre/presentation/widgets/uri_breadcrumb.dart';
+
+class HistorySuggestions extends HookConsumerWidget {
+  final ValueListenable<TextEditingValue> searchTextListenable;
+  final void Function(Uri uri) onUriSelected;
+
+  const HistorySuggestions({
+    super.key,
+    required this.onUriSelected,
+    required this.searchTextListenable,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historySuggestionsAsync = ref.watch(engineHistorySuggestionsProvider);
+    final totalResults = historySuggestionsAsync.value?.length ?? 0;
+
+    useOnListenableChangeSelector(
+      searchTextListenable,
+      () => searchTextListenable.value.text,
+      () async {
+        if (ref.exists(engineSuggestionsProvider)) {
+          await ref
+              .read(engineSuggestionsProvider.notifier)
+              .addQuery(searchTextListenable.value.text);
+        }
+      },
+    );
+
+    if (historySuggestionsAsync.hasValue &&
+        (historySuggestionsAsync.value.isEmpty)) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    return SearchModuleSection(
+      title: 'History',
+      moduleType: SearchModuleType.history,
+      totalCount: totalResults,
+      contentSliverBuilder:
+          ({required bool isCollapsed, required int visibleCount}) => [
+            SliverSkeletonizer(
+              enabled: historySuggestionsAsync.isLoading,
+              child: historySuggestionsAsync.when(
+                skipLoadingOnReload: true,
+                data: (historySuggestions) {
+                  return SliverList.builder(
+                    itemCount: visibleCount,
+                    itemBuilder: (context, index) {
+                      final suggestion = historySuggestions[index];
+                      final uri = suggestion.description.mapNotNull(
+                        Uri.tryParse,
+                      );
+
+                      return HookBuilder(
+                        key: ValueKey(suggestion.id),
+                        builder: (context) {
+                          final icon = useCachedFuture(
+                            () async =>
+                                suggestion.icon.mapNotNull(tryDecodeImage),
+                            [suggestion.description, suggestion.icon],
+                          );
+
+                          return ListTile(
+                            leading: RepaintBoundary(
+                              child: SafeRawImage(
+                                image: icon.data,
+                                height: 24,
+                                width: 24,
+                                fallback: const Icon(MdiIcons.web, size: 24),
+                              ),
+                            ),
+                            title: suggestion.title.mapNotNull(
+                              (title) => Text(
+                                title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            subtitle:
+                                uri.mapNotNull(
+                                  (uri) => UriBreadcrumb(
+                                    uri: uri,
+                                    showHttpScheme: false,
+                                  ),
+                                ) ??
+                                suggestion.description.mapNotNull(
+                                  (description) => Text(
+                                    description,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                            onTap: () {
+                              if (uri != null) {
+                                onUriSelected(uri);
+                              }
+                            },
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+                error: (error, stackTrace) {
+                  return SliverToBoxAdapter(
+                    child: FailureWidget(
+                      title: 'Could not load history',
+                      exception: error,
+                    ),
+                  );
+                },
+                loading: () => SliverList.builder(
+                  itemCount: isCollapsed ? 0 : previewItemsPerModule,
+                  itemBuilder: (context, index) {
+                    return const ListTile(title: Bone.text());
+                  },
+                ),
+              ),
+            ),
+          ],
+    );
+  }
+}

@@ -1,0 +1,91 @@
+name: weblibre_project
+
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+workspace:
+  - apps/weblibre/
+  - packages/flutter_mozilla_components
+  - packages/flutter_mozilla_components/example
+  - packages/flutter_tor
+  - packages/flutter_tor/example
+  - packages/simple_intent_receiver
+  - packages/simple_intent_receiver/example
+  - packages/locale_resolver
+  - packages/locale_resolver/example
+  - packages/speech_to_text_dialog
+  - packages/speech_to_text_dialog/example
+dev_dependencies:
+  melos: ^7.5.1
+
+melos:
+  name: weblibre_project
+
+  command:
+    clean:
+      hooks:
+        pre: melos exec -c 1 -- "flutter clean"
+
+  scripts:
+    upgrade-major-tighten:
+      run: |
+        dart pub upgrade --major-versions --tighten
+      exec:
+        concurrency: 1
+    validate-dependencies:
+      description: Validates dependcies in the workspace
+      packageFilters:
+        noDependsOn: melos
+      exec: |
+        dart pub global run dependency_validator
+    build-watch:
+      description: Generate and watch files with build_runner in the workspace
+      packageFilters:
+        dependsOn: build_runner
+      exec: |
+        dart run build_runner watch --delete-conflicting-outputs
+    build:
+      description: Generate files with build_runner in the workspace
+      packageFilters:
+        dependsOn: build_runner
+      run: |
+        dart run build_runner build --delete-conflicting-outputs
+      exec:
+        failFast: true
+        concurrency: 1
+    build-pigeons:
+      description: Running pigeon for files in pigeons directory
+      exec: |
+        echo "Running pigeon for files in pigeons directory:"
+        for file in ./pigeons/*; do
+          if [ -f "\$file" ]; then
+            echo "Processing \$file"
+            flutter pub run pigeon --input "\$file"
+          fi
+        done
+      packageFilters:
+        dirExists: 'pigeons'
+    format:
+      description: Format all Dart files in the workspace
+      exec: dart format .
+    update-assets:
+      description: Download external assets (bangs, bridges, URL lists)
+      run: bash scripts/update-assets.sh
+    build-components:
+      description: Build JS components and generate quotes DB
+      run: |
+        set -e
+        sh scripts/build-container-proxy.sh
+        sh scripts/build-readability.sh
+        python3 scripts/build_quotes_db.py
+    build-browser:
+      description: Build one stable arm64 release APK
+      run: |
+        set -e
+        cd apps/weblibre
+        flutter build apk --release --flavor stable --target-platform android-arm64 --no-tree-shake-icons
+    build-browser-alpha:
+      description: Build one alpha arm64 release APK (side-by-side installable with stable)
+      run: |
+        set -e
+        cd apps/weblibre
+        flutter build apk --release --flavor alpha --target-platform android-arm64 --no-tree-shake-icons

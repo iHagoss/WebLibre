@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?><!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<resources>
+    <!-- Text shown after successfully enabled an add-on. %1$s is the add-on name. -->
+    <string name="mozac_feature_addons_successfully_enabled" >Successfully enabled %1$s</string>
+    <!-- Text shown after failed to enable an add-on. %1$s is the add-on name. -->
+    <string name="mozac_feature_addons_failed_to_enable">Failed to enable %1$s</string>
+    <!-- Text shown after successfully disabled an add-on. %1$s is the add-on name. -->
+    <string name="mozac_feature_addons_successfully_disabled">Successfully disabled %1$s</string>
+    <!-- Text shown after failed to disable an add-on. %1$s is the add-on name. -->
+    <string name="mozac_feature_addons_failed_to_disable">Failed to disable %1$s</string>
+    <!-- Text shown after successfully uninstalled an add-on. %1$s is the add-on name. -->
+    <string name="mozac_feature_addons_successfully_uninstalled">Successfully uninstalled %1$s</string>
+    <!-- Text shown after failed to uninstall an add-on. %1$s is the add-on name. -->
+    <string name="mozac_feature_addons_failed_to_uninstall">Failed to uninstall %1$s</string>
+    <!-- Error shown when something unexpected happened while trying to get the extension list from the server -->
+    <string name="mozac_feature_addons_failed_to_query_extensions">Failed to query extensions!</string>
+    <!-- Custom tab menu items -->
+    <string name="custom_tab_share">Share</string>
+    <string name="custom_tab_desktop_site">Desktop site</string>
+    <string name="custom_tab_open_in_browser">Open in browser</string>
+    <string name="custom_tab_navigate_back">Back</string>
+    <string name="custom_tab_navigate_forward">Forward</string>
+    <string name="custom_tab_refresh">Refresh</string>
+    <string name="mozac_feature_customtabs_exit_button">Close</string>
+    <string name="mozac_feature_customtabs_menu_button">Menu</string>
+    <string name="mozac_feature_customtabs_security_indicator">Security</string>
+
+</resources>

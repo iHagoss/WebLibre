@@ -1,0 +1,57 @@
+'use strict';
+
+const port = browser.runtime.connectNative("mlEngine");
+
+function sendJsonResultForRequest(id) {
+    return function (result) {
+        port.postMessage({
+            "id": id,
+            "status": "success",
+            "result": result
+        })
+    }
+}
+
+function sendErrorForRequest(id) {
+    return function (error) {
+        console.error(error);
+        port.postMessage({
+            "id": id,
+            "status": "error",
+            "error": error
+        });
+    }
+}
+
+browser.experiments.ml.onProgress.addListener((progressData) => {
+    port.postMessage({
+        type: "mlProgress",
+        progress: progressData
+    });
+});
+
+port.onMessage.addListener(async (message) => {
+    let requestId = message["id"]
+    switch (message["action"]) {
+        case "predictDocumentTopic": {
+            const documents = message["args"];
+            const keywords = (documents.length > 1)
+                ? await browser.experiments.nlp.extractKeywords([documents.slice(0, 3).join(" ")])
+                : [[]];
+
+            browser.experiments.ml.predictTopic(keywords[0], documents)
+                .then(sendJsonResultForRequest(requestId))
+                .catch(sendErrorForRequest(requestId));
+
+            break;
+        }
+        case "generateDocumentEmbeddings": {
+            const documents = message["args"];
+            await browser.experiments.ml.generateEmbeddings(documents)
+                .then(sendJsonResultForRequest(requestId))
+                .catch(sendErrorForRequest(requestId));
+
+            break;
+        }
+    }
+});

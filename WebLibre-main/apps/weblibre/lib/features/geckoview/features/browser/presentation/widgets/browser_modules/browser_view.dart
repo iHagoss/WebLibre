@@ -1,0 +1,761 @@
+/*
+ * Copyright (c) 2024-2026 Fabian Freund.
+ *
+ * This file is part of WebLibre
+ * (see https://weblibre.eu).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter_mozilla_components/flutter_mozilla_components.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:nullability/nullability.dart';
+import 'package:quick_actions/quick_actions.dart';
+import 'package:weblibre/core/logger.dart';
+import 'package:weblibre/core/providers/device_info.dart';
+import 'package:weblibre/core/providers/router.dart';
+import 'package:weblibre/core/routing/routes.dart';
+import 'package:weblibre/features/bangs/domain/providers/bangs.dart';
+import 'package:weblibre/features/bangs/domain/services/search_history_cleanup.dart';
+import 'package:weblibre/features/geckoview/domain/entities/tab_container_selection.dart';
+import 'package:weblibre/features/geckoview/domain/providers.dart';
+import 'package:weblibre/features/geckoview/domain/providers/browser_extension.dart';
+import 'package:weblibre/features/geckoview/domain/providers/tab_session.dart';
+import 'package:weblibre/features/geckoview/domain/providers/tab_state.dart';
+import 'package:weblibre/features/geckoview/domain/providers/web_extensions_state.dart';
+import 'package:weblibre/features/geckoview/domain/repositories/tab.dart';
+import 'package:weblibre/features/geckoview/features/browser/domain/providers.dart';
+import 'package:weblibre/features/geckoview/features/browser/domain/providers/intent.dart';
+import 'package:weblibre/features/geckoview/features/browser/domain/providers/lifecycle.dart';
+import 'package:weblibre/features/geckoview/features/browser/domain/providers/pane_controller.dart';
+import 'package:weblibre/features/geckoview/features/browser/domain/services/browser_data.dart';
+import 'package:weblibre/features/geckoview/features/browser/domain/services/engine_settings_replication.dart';
+import 'package:weblibre/features/geckoview/features/browser/domain/services/proxy_settings_replication.dart';
+import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/browser_home.dart';
+import 'package:weblibre/features/geckoview/features/browser/presentation/widgets/browser_modules/multi_pane_browser_view.dart';
+import 'package:weblibre/features/geckoview/features/history/domain/repositories/history.dart';
+import 'package:weblibre/features/geckoview/features/preferences/data/repositories/preference_observer.dart';
+import 'package:weblibre/features/geckoview/features/pwa/domain/providers.dart';
+import 'package:weblibre/features/geckoview/features/tabs/data/entities/tab_mode.dart';
+import 'package:weblibre/features/geckoview/features/tabs/domain/providers/selected_container.dart';
+import 'package:weblibre/features/geckoview/features/tabs/domain/repositories/container.dart';
+import 'package:weblibre/features/geckoview/features/tabs/domain/repositories/tab.dart';
+import 'package:weblibre/features/intent_gatekeeper/domain/entities/intent_source_policy.dart';
+import 'package:weblibre/features/intent_gatekeeper/domain/entities/pending_intent_decision.dart';
+import 'package:weblibre/features/intent_gatekeeper/domain/services/intent_gatekeeper.dart';
+import 'package:weblibre/features/intent_gatekeeper/domain/services/native_gatekeeper_replicator.dart';
+import 'package:weblibre/features/intent_gatekeeper/presentation/widgets/intent_gatekeeper_dialog.dart';
+import 'package:weblibre/features/share_intent/domain/entities/intent_container_mode.dart';
+import 'package:weblibre/features/share_intent/domain/entities/shared_content.dart';
+import 'package:weblibre/features/user/data/models/general_settings.dart';
+import 'package:weblibre/features/user/domain/providers/profile_auth.dart';
+import 'package:weblibre/features/user/domain/repositories/cache.dart';
+import 'package:weblibre/features/user/domain/repositories/general_settings.dart';
+import 'package:weblibre/features/user/domain/services/local_authentication.dart';
+import 'package:weblibre/features/web_feed/domain/providers/add_dialog_blocking.dart';
+import 'package:weblibre/features/web_feed/domain/services/article_content_processor.dart';
+import 'package:weblibre/presentation/hooks/on_initialization.dart';
+import 'package:weblibre/utils/ui_helper.dart';
+
+class BrowserView extends StatefulHookConsumerWidget {
+  final Duration screenshotPeriod;
+  final Duration suggestionTimeout;
+  final Future<void> Function()? postInitializationStep;
+  final StreamSink<Offset>? pointerMoveEventSink;
+
+  const BrowserView({
+    super.key,
+    this.screenshotPeriod = const Duration(seconds: 10),
+    this.suggestionTimeout = const Duration(seconds: 30),
+    this.postInitializationStep,
+    this.pointerMoveEventSink,
+  });
+
+  @override
+  ConsumerState<ConsumerStatefulWidget> createState() => _BrowserViewState();
+}
+
+class _BrowserViewState extends ConsumerState<BrowserView>
+    with WidgetsBindingObserver {
+  Timer? _periodicScreenshotUpdate;
+  final Completer<void> _initializationCompleter = Completer<void>();
+
+  //This is managed by widget state changes to resume a timer
+  bool _timerPaused = false;
+
+  DateTime? _suggestionCountTime;
+
+  static const _pointerThrottleInterval = Duration(milliseconds: 32);
+  DateTime _lastPointerEvent = DateTime(0);
+  Offset _accumulatedDelta = Offset.zero;
+
+  Future<void> _timerTick(Timer timer) async {
+    await ref
+        .read(selectedTabSessionProvider)
+        .requestScreenshot(requireImageResult: false)
+        .onError((error, stackTrace) {
+          logger.e(error, stackTrace: stackTrace);
+          timer.cancel();
+
+          return null;
+        });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    useOnInitialization(() async {
+      await ref
+          .read(generalSettingsRepositoryProvider.notifier)
+          .fetchSettings()
+          .then((settings) async {
+            await ref
+                .read(browserDataServiceProvider.notifier)
+                .deleteDataOnEngineStart(settings.deleteBrowsingDataOnQuit);
+
+            if (settings.historyAutoCleanInterval > Duration.zero) {
+              await ref
+                  .read(historyRepositoryProvider.notifier)
+                  .deleteVisitsBetween(
+                    DateTime(0),
+                    DateTime.now().subtract(settings.historyAutoCleanInterval),
+                  );
+            }
+
+            if (settings.unassignedTabsAutoCleanInterval > Duration.zero) {
+              await ref
+                  .read(tabDataRepositoryProvider.notifier)
+                  .deleteUnassignedTabsOlderThan(
+                    DateTime.now().subtract(
+                      settings.unassignedTabsAutoCleanInterval,
+                    ),
+                  );
+            }
+          });
+
+      // Clear data for containers with clearDataOnExit enabled
+      final containersToClear = await ref
+          .read(containerRepositoryProvider.notifier)
+          .getContainersToClearOnExit();
+
+      if (containersToClear.isNotEmpty) {
+        await ref
+            .read(browserDataServiceProvider.notifier)
+            .clearContainerDataOnEngineStart(containersToClear);
+      }
+    });
+
+    final showHome = ref.watch(shouldShowBrowserHomeProvider);
+
+    final topRoute = ref.watch(currentTopRouteProvider);
+    final androidInfoAsync = ref.watch(androidDeviceInfoProvider);
+
+    final isGeckoViewVisible = androidInfoAsync.when(
+      data: (androidInfo) {
+        if (androidInfo == null) {
+          // Not Android, always show GeckoView based on route
+          return topRoute is GoRoute && topRoute.name == BrowserRoute.name;
+        }
+        // Android: only apply visibility fix on Android 12 and lower (API <= 31)
+        if (androidInfo.sdkInt <= 31) {
+          return topRoute is GoRoute && topRoute.name == BrowserRoute.name;
+        }
+        // Android 13+: always show GeckoView
+        return true;
+      },
+      loading: () => true, // Show by default while loading
+      error: (_, _) => true, // Show by default on error
+    );
+
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerUp: (widget.pointerMoveEventSink != null)
+          ? (_) {
+              if (_accumulatedDelta != Offset.zero) {
+                widget.pointerMoveEventSink!.add(_accumulatedDelta);
+                _accumulatedDelta = Offset.zero;
+              }
+            }
+          : null,
+      onPointerMove: (widget.pointerMoveEventSink != null)
+          ? (event) {
+              if (event.down) {
+                _accumulatedDelta += event.localDelta;
+                final now = DateTime.now();
+                if (now.difference(_lastPointerEvent) >=
+                    _pointerThrottleInterval) {
+                  _lastPointerEvent = now;
+                  widget.pointerMoveEventSink!.add(_accumulatedDelta);
+                  _accumulatedDelta = Offset.zero;
+                }
+              }
+            }
+          : null,
+      child: Stack(
+        children: [
+          Visibility(
+            visible: isGeckoViewVisible,
+            child: MultiPaneBrowserView(
+              // BrowserHome is shown as an overlay only when the focused pane
+              // needs it. In single-pane mode this preserves the legacy
+              // full-bleed BrowserHome behavior. In split modes only the
+              // focused pane gets the overlay so the other panes keep showing
+              // their live web content.
+              focusedPaneOverlayBuilder: showHome
+                  ? (context) => const BrowserHome()
+                  : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(browserViewLifecycleProvider.notifier)
+          .update(SchedulerBinding.instance.lifecycleState);
+    });
+
+    WidgetsBinding.instance.addObserver(this);
+
+    // Replaces the legacy GeckoView preInit/postInit callbacks.
+    // We now run startup work (pane seeding, postInit callback, quick actions
+    // shortcut registration) as soon as the engine reports ready, rather
+    // than as a side-effect of a single legacy GeckoView attaching to a
+    // session. This is required because MultiPaneBrowserView may attach up
+    // to four GeckoViews and no individual pane owns app-wide init work.
+    ref.listenManual<bool>(
+      fireImmediately: true,
+      engineReadyStateProvider,
+      (previous, next) async {
+        if (next != true) return;
+        if (_initializationCompleter.isCompleted) return;
+        _initializationCompleter.complete();
+
+        try {
+          // Seed the four pane slots once. Safe to call multiple times; the
+          // controller guards with an internal flag.
+          await ref
+              .read(paneControllerProvider.notifier)
+              .ensureStartupPanesSeeded();
+
+          await widget.postInitializationStep?.call();
+
+          const quickActions = QuickActions();
+
+          //Debounce: https://github.com/flutter/flutter/issues/131121
+          DateTime? lastAction;
+          await quickActions.initialize((type) async {
+            if (lastAction == null ||
+                DateTime.now().difference(lastAction!) >
+                    const Duration(seconds: 5)) {
+              if (type == 'new_tab') {
+                lastAction = DateTime.now();
+
+                final router = await ref.read(routerProvider.future);
+                const route = SearchRoute(tabType: TabType.regular);
+
+                await router.push(route.location);
+              } else if (type == 'new_private_tab') {
+                lastAction = DateTime.now();
+
+                final router = await ref.read(routerProvider.future);
+                const route = SearchRoute(tabType: TabType.private);
+
+                await router.push(route.location);
+              } else if (type == 'new_isolated_tab') {
+                final settings = ref.read(generalSettingsWithDefaultsProvider);
+                if (!settings.showIsolatedTabUi) {
+                  return;
+                }
+
+                lastAction = DateTime.now();
+
+                final router = await ref.read(routerProvider.future);
+                const route = SearchRoute(tabType: TabType.isolated);
+
+                await router.push(route.location);
+              } else {
+                throw UnimplementedError('Unknown quick action shortcut type');
+              }
+            }
+          });
+
+          final settings = ref.read(generalSettingsWithDefaultsProvider);
+          await quickActions.setShortcutItems([
+            const ShortcutItem(
+              type: 'new_tab',
+              localizedTitle: 'New Tab',
+              icon: 'mdi_icon_tab',
+            ),
+            const ShortcutItem(
+              type: 'new_private_tab',
+              localizedTitle: 'New Private Tab',
+              icon: 'mdi_icon_domino_mask',
+            ),
+            if (settings.showIsolatedTabUi)
+              const ShortcutItem(
+                type: 'new_isolated_tab',
+                localizedTitle: 'New Isolated Tab',
+                icon: 'mdi_icon_snowflake',
+              ),
+          ]);
+        } catch (error, stackTrace) {
+          logger.e(
+            'Error during post-engine-ready initialization',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
+      },
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to engineReadyStateProvider in BrowserView',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    ref.listenManual(
+      selectedTabStateProvider.select(
+        (state) => (
+          tabId: state?.id,
+          isLoading: state?.isLoading,
+          isFullScreen: state?.isFullScreen,
+        ),
+      ),
+      (previous, next) {
+        if (previous?.tabId != next.tabId ||
+            next.isLoading == true ||
+            next.isFullScreen == true) {
+          _periodicScreenshotUpdate?.cancel();
+          _periodicScreenshotUpdate = null;
+          _timerPaused = false;
+          return;
+        }
+
+        if ((_periodicScreenshotUpdate?.isActive ?? false) == false) {
+          _timerPaused = false;
+          _periodicScreenshotUpdate?.cancel();
+          _periodicScreenshotUpdate = Timer.periodic(
+            widget.screenshotPeriod,
+            _timerTick,
+          );
+        }
+      },
+    );
+
+    ref.listenManual(feedRequestedProvider, (previous, next) async {
+      if (next.value.mapNotNull(Uri.tryParse) case final Uri url) {
+        if (GoRouterState.of(context).topRoute?.name != FeedAddRoute.name) {
+          if (ref.read(addFeedDialogBlockingProvider.notifier).canPush(url)) {
+            await FeedAddRoute(uri: url.toString()).push(context);
+          }
+        }
+      }
+    });
+
+    ref.listenManual<AsyncValue<PendingIntentDecision>>(
+      intentGatekeeperProvider,
+      (previous, next) async {
+        final request = next.value;
+        if (request == null) {
+          return;
+        }
+
+        final gatekeeper = ref.read(intentGatekeeperProvider.notifier);
+        if (!context.mounted) {
+          await gatekeeper.resolve(
+            id: request.id,
+            decision: IntentSourcePolicy.block,
+          );
+          return;
+        }
+
+        final outcome = await showDialog<DialogOutcome>(
+          context: context,
+          builder: (context) => IntentGatekeeperDialog(request: request),
+        );
+
+        await gatekeeper.resolve(
+          id: request.id,
+          decision: outcome?.decision ?? IntentSourcePolicy.block,
+          persist: outcome?.persist ?? false,
+          packageName: request.packageName,
+        );
+      },
+    );
+
+    ref.listenManual(
+      engineBoundIntentStreamProvider,
+      (previous, next) {
+        next.whenData((sharedContent) async {
+          final settings = ref.read(generalSettingsWithDefaultsProvider);
+
+          switch (settings.effectiveTabIntentOpenSetting) {
+            case TabIntentOpenSetting.regular:
+            case TabIntentOpenSetting.private:
+            case TabIntentOpenSetting.isolated:
+              await ref
+                  .read(engineReadyStateProvider.notifier)
+                  .waitUntilReady();
+
+              final tabMode = switch (settings.effectiveTabIntentOpenSetting) {
+                TabIntentOpenSetting.private => TabMode.private,
+                TabIntentOpenSetting.isolated => TabMode.newIsolated(),
+                _ => TabMode.regular,
+              };
+
+              switch (sharedContent) {
+                case SharedUrl():
+                  final containerSelection =
+                      settings.effectiveTabIntentOpenSetting ==
+                          TabIntentOpenSetting.isolated
+                      ? const TabContainerSelection.unassigned()
+                      : await _resolveContainerSelection(
+                          ref,
+                          sharedContent.contextId,
+                          sharedContent.containerMode,
+                        );
+
+                  await ref
+                      .read(tabRepositoryProvider.notifier)
+                      .addTab(
+                        url: sharedContent.url,
+                        tabMode: tabMode,
+                        launchedFromIntent: true,
+                        selectTab: true,
+                        containerSelection: containerSelection,
+                      );
+                case SharedText():
+                  final bang =
+                      ref.read(selectedBangDataProvider()) ??
+                      await ref.read(defaultSearchBangProvider.future);
+
+                  await ref
+                      .read(tabRepositoryProvider.notifier)
+                      .addTab(
+                        url: bang?.getTemplateUrl(sharedContent.text),
+                        tabMode: tabMode,
+                        launchedFromIntent: true,
+                        selectTab: true,
+                      );
+              }
+            case TabIntentOpenSetting.ask:
+              final router = await ref.read(routerProvider.future);
+
+              switch (sharedContent) {
+                case SharedUrl():
+                  final route = OpenSharedContentRoute(
+                    sharedUrl: sharedContent.url.toString(),
+                    contextId: sharedContent.contextId,
+                    containerMode: sharedContent.containerMode.queryValueOrNull,
+                  );
+                  await router.push(route.location);
+                case SharedText():
+                  final route = SearchRoute(
+                    tabType:
+                        ref.read(selectedTabTypeProvider) ??
+                        settings.effectiveDefaultCreateTabType,
+                    searchText: sharedContent.text,
+                    launchedFromIntent: true, //launched from intent
+                  );
+                  await router.push(route.location);
+              }
+          }
+        });
+      },
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to engineBoundIntentStreamProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    //Initialize and register dependencies
+    ref.listenManual(
+      fireImmediately: true,
+      tabRepositoryProvider,
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to tabRepositoryProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    ref.listenManual(
+      fireImmediately: true,
+      nativeIntentGatekeeperReplicatorProvider,
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to nativeIntentGatekeeperReplicatorProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    ref.listenManual(
+      fireImmediately: true,
+      selectionActionServiceProvider,
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to selectionActionServiceProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    ref.listenManual(
+      fireImmediately: true,
+      webExtensionsStateProvider(WebExtensionActionType.browser),
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to webExtensionsStateProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    ref.listenManual(
+      fireImmediately: true,
+      webExtensionsStateProvider(WebExtensionActionType.page),
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to webExtensionsStateProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    ref.listenManual(
+      fireImmediately: true,
+      cacheRepositoryProvider,
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to cacheRepositoryProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    ref.listenManual(
+      fireImmediately: true,
+      preferenceFixatorProvider,
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to preferenceFixatorProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    ref.listenManual(
+      fireImmediately: true,
+      searchHistoryCleanupServiceProvider,
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to searchHistoryCleanupServiceProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    ref.listenManual(
+      fireImmediately: true,
+      engineSettingsReplicationServiceProvider,
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to engineSettingsReplicationServiceProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    ref.listenManual(
+      fireImmediately: true,
+      proxySettingsReplicationProvider,
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to proxySettingsReplicationProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    ref.listenManual(
+      fireImmediately: true,
+      articleContentProcessorServiceProvider,
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to articleContentProcessorServiceProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    // Ensure PWA manifest state is collected and stays alive
+    ref.listenManual(
+      fireImmediately: true,
+      pwaManifestStateProvider,
+      (previous, next) {},
+      onError: (error, stackTrace) {
+        logger.e(
+          'Error listening to pwaManifestStateProvider',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    ref.read(browserViewLifecycleProvider.notifier).update(state);
+
+    switch (state) {
+      case AppLifecycleState.detached:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        if (_periodicScreenshotUpdate?.isActive == true) {
+          _periodicScreenshotUpdate?.cancel();
+          _timerPaused = true;
+        }
+
+        ref
+            .read(localAuthenticationServiceProvider.notifier)
+            .evictCacheOnBackground();
+
+        if (state == AppLifecycleState.paused) {
+          _suggestionCountTime = DateTime.now();
+        }
+      case AppLifecycleState.resumed:
+        if (_timerPaused) {
+          _periodicScreenshotUpdate?.cancel();
+          _periodicScreenshotUpdate = Timer.periodic(
+            widget.screenshotPeriod,
+            _timerTick,
+          );
+          _timerPaused = false;
+        }
+
+        unawaited(
+          ref.read(profileAuthStateProvider.notifier).revalidateAfterResume(),
+        );
+
+        if (_suggestionCountTime != null &&
+            DateTime.now().difference(_suggestionCountTime!) >
+                widget.suggestionTimeout) {
+          final topRoute = ref.read(currentTopRouteProvider);
+
+          //Don't do anything if a child route is active
+          if (topRoute is GoRoute && topRoute.name == BrowserRoute.name) {
+            final settings = ref.read(generalSettingsWithDefaultsProvider);
+
+            if (settings.allowClipboardAccess) {
+              unawaited(
+                showSuggestNewTabMessage(
+                  context,
+                  onAdd: (searchText) async {
+                    await SearchRoute(
+                      tabType:
+                          ref.read(selectedTabTypeProvider) ??
+                          settings.effectiveDefaultCreateTabType,
+                      searchText: searchText ?? SearchRoute.emptySearchText,
+                    ).push(context);
+                  },
+                ),
+              );
+            }
+          }
+        }
+
+        _suggestionCountTime = null;
+    }
+  }
+
+  @override
+  Future<void> dispose() async {
+    WidgetsBinding.instance.removeObserver(this);
+
+    _periodicScreenshotUpdate?.cancel();
+
+    super.dispose();
+  }
+}
+
+/// Resolves a [TabContainerSelection] from incoming launch container metadata.
+Future<TabContainerSelection> _resolveContainerSelection(
+  WidgetRef ref,
+  String? contextId,
+  IntentContainerMode containerMode,
+) async {
+  if (contextId == null) {
+    return switch (containerMode) {
+      IntentContainerMode.unassigned =>
+        const TabContainerSelection.unassigned(),
+      _ => const TabContainerSelection.useSelected(),
+    };
+  }
+
+  final container = await ref
+      .read(containerRepositoryProvider.notifier)
+      .getContainerByContextualIdentity(contextId);
+
+  if (container != null) {
+    return TabContainerSelection.specific(container);
+  }
+
+  return switch (containerMode) {
+    IntentContainerMode.useSelected =>
+      const TabContainerSelection.useSelected(),
+    _ => const TabContainerSelection.unassigned(),
+  };
+}

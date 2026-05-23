@@ -1,0 +1,4 @@
+# Analysis options for flutter_mozilla_components package
+# Includes root configuration from monorepo
+
+include: ../../analysis_options.yaml

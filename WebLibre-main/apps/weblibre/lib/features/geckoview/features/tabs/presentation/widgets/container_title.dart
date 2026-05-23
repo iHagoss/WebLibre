@@ -1,0 +1,86 @@
+/*
+ * Copyright (c) 2024-2026 Fabian Freund.
+ *
+ * This file is part of WebLibre
+ * (see https://weblibre.eu).
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+import 'package:flutter/material.dart';
+import 'package:flutter_material_design_icons/flutter_material_design_icons.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:nullability/nullability.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import 'package:weblibre/core/logger.dart';
+import 'package:weblibre/features/geckoview/features/tabs/data/entities/container_filter.dart';
+import 'package:weblibre/features/geckoview/features/tabs/data/models/container_data.dart';
+import 'package:weblibre/features/geckoview/features/tabs/domain/providers.dart';
+import 'package:weblibre/features/geckoview/features/tabs/domain/repositories/gecko_inference.dart';
+
+class ContainerTitle extends HookConsumerWidget {
+  final ContainerData container;
+
+  const ContainerTitle({super.key, required this.container});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (container.name.isNotEmpty) {
+      return Text(
+        container.name!,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+      );
+    }
+
+    final topicAsync = ref.watch(containerTopicProvider(container.id));
+    final containerHasTabs = ref.watch(
+      containerTabCountProvider(
+        // ignore: provider_parameters
+        ContainerFilterById(containerId: container.id),
+      ).select((value) => (value.value ?? 0) > 0),
+    );
+
+    return topicAsync.when(
+      skipLoadingOnReload: true,
+      data: (data) =>
+          data.mapNotNull(
+            (name) => Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: name),
+                  const WidgetSpan(child: SizedBox(width: 4)),
+                  const WidgetSpan(child: Icon(MdiIcons.creation, size: 16)),
+                ],
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ) ??
+          Text(
+            containerHasTabs ? 'Untitled' : 'Empty',
+            style: const TextStyle(fontStyle: FontStyle.italic),
+          ),
+      error: (error, stackTrace) {
+        logger.e(
+          'Could not determine container name ${container.id}',
+          error: error,
+          stackTrace: stackTrace,
+        );
+
+        return const Text('Untitled');
+      },
+      loading: () => Skeletonizer(child: Text(topicAsync.value ?? 'container')),
+    );
+  }
+}

@@ -1,0 +1,9 @@
+# dependency_validator config for speech_to_text_dialog.
+# - example/** is its own package; exclude it so plugin scanning does not pick
+#   up example-only imports (integration_test, example name).
+# - lint is consumed via include: in analysis_options.yaml.
+exclude:
+  - "example/**"
+ignore:
+  - flutter_test
+  - lint

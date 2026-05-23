@@ -1,0 +1,10 @@
+# dependency_validator config for simple_intent_receiver.
+# - example/** is its own package; exclude it so plugin scanning does not pick
+#   up example-only imports (logger, example name).
+# - flutter_test is declared for plugin unit tests under test/.
+# - lint is consumed via include: in analysis_options.yaml.
+exclude:
+  - "example/**"
+ignore:
+  - flutter_test
+  - lint

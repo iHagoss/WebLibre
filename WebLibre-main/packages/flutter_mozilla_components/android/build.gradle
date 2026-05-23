@@ -1,0 +1,159 @@
+group = "eu.weblibre.flutter_mozilla_components"
+version = "1.0-SNAPSHOT"
+
+buildscript {
+    ext.kotlin_version = "2.3.21"
+    ext.mozillaComponentsVersion = '150.0.1'
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.13.2")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        
+        //Don't touch the following, it is replaced with sed at fdroid build:
+        maven { name "Mozilla"; url "https://gitlab.com/api/v4/projects/71401321/packages/maven" }
+
+        // maven {
+        //     name "Mozilla Nightly"
+        //     url "https://nightly.maven.mozilla.org/maven2"
+
+        //     content {
+        //         // Always fetch components from the snapshots repository
+        //         includeGroup "org.mozilla.components"
+        //     }
+        // }
+    }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+android {
+    if (project.android.hasProperty("namespace")) {
+        namespace = "eu.weblibre.flutter_mozilla_components"
+    }
+
+    compileSdk = 37
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+        test.java.srcDirs += "src/test/kotlin"
+    }
+
+    defaultConfig {
+        minSdk = 24
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+    testOptions {
+        unitTests.all {
+            useJUnitPlatform()
+
+            testLogging {
+               events "passed", "skipped", "failed", "standardOut", "standardError"
+               outputs.upToDateWhen {false}
+               showStandardStreams = true
+            }
+        }
+    }
+}
+
+configurations.configureEach {
+    exclude group: "org.mozilla.telemetry", module: "glean-native"
+    // Exclude standalone tink to avoid duplicate classes with tink-android
+    exclude group: "com.google.crypto.tink", module: "tink"
+}
+
+// Select the Glean from GeckoView.
+// `service-sync-logins` requires Glean, which pulls in glean-native,
+// but that's also provided by geckoview-omni, so now we need to select which one to use.
+project.configurations.configureEach {
+    resolutionStrategy.capabilitiesResolution.withCapability("org.mozilla.telemetry:glean-native") {
+        def toBeSelected = candidates.find { it.id instanceof ModuleComponentIdentifier && it.id.module.contains('geckoview') }
+        if (toBeSelected != null) {
+            select(toBeSelected)
+        }
+        because 'use GeckoView Glean instead of standalone Glean'
+    }
+}
+
+dependencies {
+    implementation "org.mozilla.components:support-utils:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:support-ktx:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:support-webextensions:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:support-locale:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:concept-engine:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:concept-fetch:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:concept-toolbar:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:concept-awesomebar:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:browser-engine-gecko:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:browser-state:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:browser-session-storage:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:browser-storage-sync:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:browser-icons:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:browser-thumbnails:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-addons:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-app-links:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-accounts:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-accounts-push:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-awesomebar:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-customtabs:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-contextmenu:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-downloads:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-media:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-tabs:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-prompts:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-session:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-readerview:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-syncedtabs:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-privatemode:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-sitepermissions:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-webcompat:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-webnotifications:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-webauthn:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-pwa:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:feature-intent:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:ui-widgets:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:lib-publicsuffixlist:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:service-firefox-accounts:$mozillaComponentsVersion"
+    implementation "org.mozilla.components:support-appservices:$mozillaComponentsVersion"
+    implementation "org.ironfoxoss.unifiedpush:unifiedpush:$mozillaComponentsVersion"
+    implementation ('org.unifiedpush.android:connector:3.3.2') {
+        exclude group: 'com.google.protobuf', module: 'protobuf-java'
+    }
+
+    implementation 'androidx.coordinatorlayout:coordinatorlayout:1.3.0'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.2.0'
+    implementation 'androidx.preference:preference-ktx:1.2.1'
+    implementation 'com.google.android.material:material:1.13.0'
+    implementation 'com.mikepenz:iconics-core:5.5.0'
+    implementation 'com.mikepenz:community-material-typeface:7.0.96.2-kotlin@aar'
+    //https://stackoverflow.com/questions/73782320/onbackinvokedcallback-is-not-enabled-for-the-application-in-set-androidenableo
+    implementation 'androidx.activity:activity-ktx:1.13.0'
+    implementation 'androidx.paging:paging-runtime-ktx:3.4.2'
+
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testImplementation("org.mockito:mockito-core:5.23.0")
+}

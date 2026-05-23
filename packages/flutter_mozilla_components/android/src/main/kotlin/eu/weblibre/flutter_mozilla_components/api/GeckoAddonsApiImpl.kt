@@ -23,6 +23,7 @@ import eu.weblibre.flutter_mozilla_components.pigeons.AddonUpdateStatus
 import eu.weblibre.flutter_mozilla_components.pigeons.GeckoAddonsApi
 import eu.weblibre.flutter_mozilla_components.pigeons.WebExtensionActionType
 import org.json.JSONArray
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -418,13 +419,25 @@ class GeckoAddonsApiImpl(private val context: Context) : GeckoAddonsApi {
             null
         }
 
+        // Guard against double-completion of the pigeon reply. mozilla-android-components'
+        // AddonManager.installAddon can, in edge cases (e.g. cancellation, postponed installs,
+        // races with engine teardown), invoke onError after onSuccess (or vice versa). The
+        // generated pigeon channel then calls reply.reply(...) twice and Android throws
+        // IllegalStateException: "result is already complete", crashing the app.
+        val invoked = AtomicBoolean(false)
+        val onceCallback: (Result<Unit>) -> Unit = { result ->
+            if (invoked.compareAndSet(false, true)) {
+                callback(result)
+            }
+        }
+
         scope.launch {
             try {
                 withContext(Dispatchers.Main.immediate) {
-                    performAddonInstall(url, isLocalFileInstall, callback)
+                    performAddonInstall(url, isLocalFileInstall, onceCallback)
                 }
             } catch (throwable: Throwable) {
-                callback(Result.failure(throwable))
+                onceCallback(Result.failure(throwable))
             }
         }
     }

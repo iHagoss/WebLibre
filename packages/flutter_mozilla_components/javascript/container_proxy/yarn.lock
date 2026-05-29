@@ -239,6 +239,11 @@
   resolved "https://registry.npmjs.org/@mdn/browser-compat-data/-/browser-compat-data-7.3.15.tgz"
   integrity sha512-8YoG52J2ZsR+T4p0JsAuoWeztBgJsAtGY+LeGEAHvyJBojJzJtLb8o1fRsIbc0v6EHKRLIrCU3VoAIK1olntag==
 
+"@mdn/browser-compat-data@7.3.16":
+  version "7.3.16"
+  resolved "https://registry.yarnpkg.com/@mdn/browser-compat-data/-/browser-compat-data-7.3.16.tgz#4a5b7feb3484faf6bea3b00b773b03bc08eaa209"
+  integrity sha512-JQ6SGcHeyqSYGVwWe7NzOeXfp/vZgo2yz+fsEbMOyWLyNRVP4RoG8+dqaF/VTx1zPtF4J8XvxiWXH1l2cMZTwQ==
+
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"
   resolved "https://registry.npmjs.org/@nodelib/fs.scandir/-/fs.scandir-2.1.5.tgz"
@@ -615,7 +620,7 @@ acorn@^8.15.0, acorn@^8.16.0, acorn@^8.9.0:
   resolved "https://registry.npmjs.org/acorn/-/acorn-8.16.0.tgz"
   integrity sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==
 
-addons-linter@10.5.0, addons-linter@^10.5.0:
+addons-linter@10.5.0:
   version "10.5.0"
   resolved "https://registry.npmjs.org/addons-linter/-/addons-linter-10.5.0.tgz"
   integrity sha512-bNxux80+rhU2bT1v/QQCUIuUQCW0vSCJdF34yhtT3+EGWEkqdAz8rrW2Af4noSbkGvVj2S3lr5YHN9/6eobZxw==
@@ -625,6 +630,36 @@ addons-linter@10.5.0, addons-linter@^10.5.0:
     "@mdn/browser-compat-data" "7.3.15"
     addons-moz-compare "1.3.0"
     addons-scanner-utils "15.1.0"
+    ajv "8.20.0"
+    cheerio "1.2.0"
+    columnify "1.6.0"
+    common-tags "1.8.2"
+    deepmerge "4.3.1"
+    eslint "9.39.4"
+    eslint-plugin-no-unsanitized "4.1.5"
+    eslint-visitor-keys "5.0.1"
+    espree "11.2.0"
+    esprima "4.0.1"
+    fast-json-patch "3.1.1"
+    image-size "2.0.2"
+    json-merge-patch "1.0.2"
+    pino "10.3.1"
+    semver "7.8.0"
+    source-map-support "0.5.21"
+    upath "3.0.7"
+    yargs "17.7.2"
+    yauzl "3.3.0"
+
+addons-linter@^10.6.0:
+  version "10.6.0"
+  resolved "https://registry.yarnpkg.com/addons-linter/-/addons-linter-10.6.0.tgz#d2ef2a9cb9ca857f713083253c88451289f0e3c6"
+  integrity sha512-8T+Rj4U1lGwtC4OIInsEoxty3H0iZMtvkI+Wvo5+EFfnWhknPBOexusM0o7mi00keNk4dq/2tVZVRSE62SdRsA==
+  dependencies:
+    "@fluent/syntax" "0.19.0"
+    "@fregante/relaxed-json" "2.0.0"
+    "@mdn/browser-compat-data" "7.3.16"
+    addons-moz-compare "1.3.0"
+    addons-scanner-utils "15.2.0"
     ajv "8.20.0"
     cheerio "1.2.0"
     columnify "1.6.0"
@@ -662,6 +697,18 @@ addons-scanner-utils@15.1.0:
     upath "3.0.7"
     yauzl "3.3.0"
 
+addons-scanner-utils@15.2.0:
+  version "15.2.0"
+  resolved "https://registry.yarnpkg.com/addons-scanner-utils/-/addons-scanner-utils-15.2.0.tgz#f5a7fd941623e991b59f4502989fb7a732ba7f82"
+  integrity sha512-SkjE3jE7Sfx67KuL8nI5DolqqQ35G1GMcMrgT9LufKnBJUW4YnoBO1sLAILj3N/FLhfSAT0hwWK1MSVLmgbASQ==
+  dependencies:
+    common-tags "1.8.2"
+    first-chunk-stream "3.0.0"
+    jsonwebtoken "^9.0.3"
+    strip-bom-stream "4.0.0"
+    upath "3.0.7"
+    yauzl "3.3.0"
+
 adm-zip@~0.5.x:
   version "0.5.17"
   resolved "https://registry.npmjs.org/adm-zip/-/adm-zip-0.5.17.tgz"
@@ -686,7 +733,7 @@ ajv-keywords@^5.1.0:
   dependencies:
     fast-deep-equal "^3.1.3"
 
-ajv@8.20.0:
+ajv@8.20.0, ajv@^8.0.0, ajv@^8.0.1, ajv@^8.9.0:
   version "8.20.0"
   resolved "https://registry.npmjs.org/ajv/-/ajv-8.20.0.tgz"
   integrity sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==
@@ -705,16 +752,6 @@ ajv@^6.10.0, ajv@^6.12.4, ajv@^6.14.0:
     fast-json-stable-stringify "^2.0.0"
     json-schema-traverse "^0.4.1"
     uri-js "^4.2.2"
-
-ajv@^8.0.0, ajv@^8.0.1, ajv@^8.9.0:
-  version "8.18.0"
-  resolved "https://registry.npmjs.org/ajv/-/ajv-8.18.0.tgz"
-  integrity sha512-PlXPeEWMXMZ7sPYOHqmDyCJzcfNrUr3fGNKtezX14ykXOEIvyK81d+qydx89KY5O71FKMPaQ2vBfBFI5NHR63A==
-  dependencies:
-    fast-deep-equal "^3.1.3"
-    fast-uri "^3.0.1"
-    json-schema-traverse "^1.0.0"
-    require-from-string "^2.0.2"
 
 ansi-align@^3.0.1:
   version "3.0.1"
@@ -4176,7 +4213,7 @@ schema-utils@^4.2.0, schema-utils@^4.3.0, schema-utils@^4.3.3:
   resolved "https://registry.npmjs.org/semver/-/semver-5.7.2.tgz"
   integrity sha512-cBznnQ9KjJqU67B52RMC65CMarK2600WFnbkcaiwWq3xy/5haFJlshgnpjovMVJ+Hff49d8GEn0b87C5pDQ10g==
 
-semver@7.8.0:
+semver@7.8.0, semver@^7.0.0, semver@^7.2.1, semver@^7.3.4, semver@^7.3.7, semver@^7.3.8, semver@^7.5.4, semver@^7.6.0, semver@^7.6.3:
   version "7.8.0"
   resolved "https://registry.npmjs.org/semver/-/semver-7.8.0.tgz"
   integrity sha512-AcM7dV/5ul4EekoQ29Agm5vri8JNqRyj39o0qpX6vDF2GZrtutZl5RwgD1XnZjiTAfncsJhMI48QQH3sN87YNA==
@@ -4185,11 +4222,6 @@ semver@^6.1.0, semver@^6.3.1:
   version "6.3.1"
   resolved "https://registry.npmjs.org/semver/-/semver-6.3.1.tgz"
   integrity sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==
-
-semver@^7.0.0, semver@^7.2.1, semver@^7.3.4, semver@^7.3.7, semver@^7.3.8, semver@^7.5.4, semver@^7.6.0, semver@^7.6.3:
-  version "7.7.4"
-  resolved "https://registry.npmjs.org/semver/-/semver-7.7.4.tgz"
-  integrity sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA==
 
 serialize-javascript@^7.0.3:
   version "7.0.5"
